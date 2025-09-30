@@ -7,7 +7,7 @@ import numpy as np
 import joblib
 import os
 from datetime import datetime, timedelta
-import sqlite3
+from pymongo import MongoClient, errors
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'powergrid-secret-key-2025'
@@ -15,22 +15,24 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 jwt = JWTManager(app)
 CORS(app)
 
-# Initialize database
+# Initialize MongoDB
 def init_db():
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            role TEXT DEFAULT 'user',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
+    db_name = os.getenv('MONGO_DB', 'material_forecast')
+
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
+
+    users_collection = db['users']
+
+    # Ensure unique indexes for username and email
+    try:
+        users_collection.create_index('username', unique=True)
+        users_collection.create_index('email', unique=True)
+    except errors.PyMongoError as e:
+        print(f"Error creating indexes: {e}")
+
+    return client, db, users_collection
 
 # Load models and encoders
 def load_models():
@@ -54,11 +56,22 @@ def load_data():
         return None
 
 # Initialize
-init_db()
+client, db, users_collection = init_db()
 model, feature_cols, target_cols, label_encoders = load_models()
 df = load_data()
 
 # Authentication routes
+@app.route('/api/me', methods=['GET'])
+@jwt_required()
+def me():
+    username = get_jwt_identity()
+    try:
+        user = users_collection.find_one({'username': username}, {'_id': 0, 'username': 1, 'email': 1, 'role': 1})
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        return jsonify(user)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -69,21 +82,25 @@ def register():
     if not username or not email or not password:
         return jsonify({'error': 'Missing required fields'}), 400
     
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-    
     # Check if user exists
-    cursor.execute('SELECT id FROM users WHERE username = ? OR email = ?', (username, email))
-    if cursor.fetchone():
-        conn.close()
+    existing = users_collection.find_one({'$or': [{'username': username}, {'email': email}]})
+    if existing:
         return jsonify({'error': 'User already exists'}), 400
-    
+
     # Create user
     password_hash = generate_password_hash(password)
-    cursor.execute('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)', 
-                   (username, email, password_hash))
-    conn.commit()
-    conn.close()
+    try:
+        users_collection.insert_one({
+            'username': username,
+            'email': email,
+            'password_hash': password_hash,
+            'role': 'user',
+            'created_at': datetime.utcnow()
+        })
+    except errors.DuplicateKeyError:
+        return jsonify({'error': 'User already exists'}), 400
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
     
     return jsonify({'message': 'User created successfully'}), 201
 
@@ -96,15 +113,11 @@ def login():
     if not username or not password:
         return jsonify({'error': 'Missing username or password'}), 400
     
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, password_hash, role FROM users WHERE username = ?', (username,))
-    user = cursor.fetchone()
-    conn.close()
+    user = users_collection.find_one({'username': username})
     
-    if user and check_password_hash(user[1], password):
+    if user and check_password_hash(user.get('password_hash', ''), password):
         access_token = create_access_token(identity=username)
-        return jsonify({'access_token': access_token, 'user': {'username': username, 'role': user[2]}})
+        return jsonify({'access_token': access_token, 'user': {'username': username, 'role': user.get('role', 'user')}})
     
     return jsonify({'error': 'Invalid credentials'}), 401
 
@@ -183,6 +196,30 @@ def projects_analytics():
     project_details = project_details.merge(material_totals, on='project_id')
     
     return jsonify(project_details.to_dict('records'))
+
+# Simple dispatch data endpoint
+@app.route('/api/dispatch', methods=['GET'])
+@jwt_required()
+def dispatch_data():
+    try:
+        # Generate simple synthetic dispatch data for the last 24 hours, 1-hour interval
+        now = datetime.utcnow()
+        points = []
+        for i in range(24, -1, -1):
+            ts = now - timedelta(hours=i)
+            # Basic waveform-like variation
+            demand = 800 + (i % 12) * 10
+            supply = demand - 10 + (i % 5)
+            frequency = 49.5 + ((i % 6) * 0.1)
+            points.append({
+                'timestamp': ts.isoformat() + 'Z',
+                'demand_mw': float(demand),
+                'supply_mw': float(supply),
+                'frequency_hz': float(round(frequency, 2))
+            })
+        return jsonify(points)
+    except Exception as e:
+        return jsonify({'error': f'Failed to build dispatch data: {str(e)}'}), 500
 
 # Forecasting route
 @app.route('/api/forecast', methods=['POST'])
