@@ -1,9 +1,15 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
 import ForecastingPage from './components/ForecastingPage';
+import MaterialsPage from './components/MaterialsPage';
+import PlanningApprovals from './components/PlanningApprovals';
+import OperationsMaintenance from './components/OperationsMaintenance';
+import LoadDispatch from './components/LoadDispatch';
+import MapView from './components/MapView';
 import Navigation from './components/Navigation';
 import './App.css';
 
@@ -23,33 +29,40 @@ const ProtectedRoute = ({ children }) => {
 
 const AppContent = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       <Navigation />
       <main>
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/forecasting" element={<ForecastingPage />} />
+          <Route path="/materials" element={<MaterialsPage />} />
+          <Route path="/map" element={<MapView />} />
+          <Route path="/planning" element={<PlanningApprovals />} />
+          <Route path="/om" element={<OperationsMaintenance />} />
+          <Route path="/dispatch" element={<LoadDispatch />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>
-    </div>
+    </>
   );
 };
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/*" element={
-            <ProtectedRoute>
-              <AppContent />
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/*" element={
+              <ProtectedRoute>
+                <AppContent />
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

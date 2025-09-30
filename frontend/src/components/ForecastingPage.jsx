@@ -46,10 +46,8 @@ const ForecastingPage = () => {
   };
 
   const formatMaterialName = (name) => {
-    return name
-      .replace('quantity_', '')
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, l => l.toUpperCase());
+    // Material names are already properly formatted from backend
+    return name;
   };
 
   const formatValue = (value, unit) => {
@@ -62,8 +60,8 @@ const ForecastingPage = () => {
   };
 
   const getUnit = (materialName) => {
-    if (materialName.includes('tons')) return 'tons';
-    if (materialName.includes('count')) return 'count';
+    if (materialName.includes('Tons')) return 'tons';
+    if (materialName.includes('Count')) return 'units';
     return '';
   };
 

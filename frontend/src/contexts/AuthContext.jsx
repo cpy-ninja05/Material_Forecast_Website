@@ -19,12 +19,10 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Verify token and get user info
-      axios.get('http://localhost:5000/api/analytics/overview')
-        .then(() => {
-          // Extract username from token (simplified approach)
-          const tokenData = JSON.parse(atob(token.split('.')[1]));
-          setUser({ username: tokenData.sub, role: 'user' });
+      // Verify token and get user info with role
+      axios.get('http://localhost:5000/api/me')
+        .then((res) => {
+          setUser({ username: res.data.username, role: res.data.role, email: res.data.email });
         })
         .catch(() => {
           localStorage.removeItem('token');
