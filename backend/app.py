@@ -848,15 +848,6 @@ def save_material_actuals():
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 # Inventory API
-@app.route('/api/inventory', methods=['GET'])
-@jwt_required()
-def get_inventory():
-    try:
-        inventory = list(inventory_collection.find({}, {'_id': 0}))
-        return jsonify(inventory)
-    except errors.PyMongoError as e:
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
-
 @app.route('/api/inventory', methods=['POST'])
 @jwt_required()
 def create_inventory_item():
@@ -888,12 +879,28 @@ def create_inventory_item():
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
+# Material pricing data (market rates)
+MATERIAL_PRICES = {
+    'Steel Tower': 45000,
+    'Conductor Cable': 850,
+    'Insulator': 1200,
+    'Power Transformer': 2500000,
+    'Switchgear': 180000,
+    'Circuit Breaker': 95000,
+    'Cable Tray': 350,
+    'Lightning Arrester': 8500,
+    'Surge Arrester': 12000,
+    'Busbar': 2800
+}
+
 # Orders API
 @app.route('/api/orders', methods=['GET'])
 @jwt_required()
 def get_orders():
     try:
-        orders = list(orders_collection.find({}, {'_id': 0}).sort('created_at', -1))
+        username = get_jwt_identity()
+        # Get orders for the current user
+        orders = list(orders_collection.find({'created_by': username}, {'_id': 0}).sort('created_at', -1))
         return jsonify(orders)
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
@@ -905,16 +912,33 @@ def create_order():
     username = get_jwt_identity()
     
     try:
+        material = data.get('material')
+        quantity = float(data.get('quantity', 0))
+        
+        # Calculate unit price based on material type
+        unit_price = MATERIAL_PRICES.get(material, 1000)  # Default price if material not found
+        
+        # Add some variation based on dealer (simulate market conditions)
+        dealer = data.get('dealer', '')
+        if 'Power Tech Solutions' in dealer:
+            unit_price *= 1.05  # 5% premium for premium dealer
+        elif 'Grid Equipment Ltd' in dealer:
+            unit_price *= 0.98  # 2% discount for bulk dealer
+        elif 'Electrical Components Co' in dealer:
+            unit_price *= 1.02  # 2% premium for quality dealer
+        
+        total_price = quantity * unit_price
+        
         order_data = {
-            'order_id': data.get('order_id', f'ORD_{datetime.now().strftime("%Y%m%d%H%M%S")}'),
-            'project_id': data.get('project_id'),
-            'material': data.get('material'),
-            'dealer': data.get('dealer'),
-            'quantity': data.get('quantity'),
-            'unit_price': data.get('unit_price'),
-            'total_price': data.get('quantity', 0) * data.get('unit_price', 0),
+            'order_id': f'ORD_{datetime.now().strftime("%Y%m%d%H%M%S")}',
+            'project': data.get('project'),
+            'material': material,
+            'dealer': dealer,
+            'quantity': quantity,
+            'unit_price': round(unit_price, 2),
+            'total_price': round(total_price, 2),
             'expected_delivery': data.get('expected_delivery'),
-            'status': data.get('status', 'PENDING'),
+            'status': 'PENDING',
             'created_by': username,
             'created_at': datetime.now(timezone.utc),
             'updated_at': datetime.now(timezone.utc)
@@ -963,10 +987,331 @@ def save_actual_values(project_id):
     except Exception as e:
         return jsonify({'error': f'Failed to save actual values: {str(e)}'}), 500
 
+@app.route('/api/orders/<order_id>', methods=['PUT'])
+@jwt_required()
+def update_order_status(order_id):
+    data = request.get_json()
+    username = get_jwt_identity()
+    
+    try:
+        update_data = {
+            'status': data.get('status'),
+            'updated_by': username,
+            'updated_at': datetime.now(timezone.utc)
+        }
+        
+        result = orders_collection.update_one(
+            {'order_id': order_id, 'created_by': username},
+            {'$set': update_data}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify({'error': 'Order not found'}), 404
+            
+        return jsonify({'message': 'Order updated successfully'}), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/orders/<order_id>', methods=['DELETE'])
+@jwt_required()
+def delete_order(order_id):
+    username = get_jwt_identity()
+    
+    try:
+        result = orders_collection.delete_one({
+            'order_id': order_id, 
+            'created_by': username
+        })
+        
+        if result.deleted_count == 0:
+            return jsonify({'error': 'Order not found or you do not have permission to delete it'}), 404
+            
+        return jsonify({'message': 'Order deleted successfully'}), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
 # Health check
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+# Inventory Management Endpoints
+@app.route('/api/inventory', methods=['GET'])
+@jwt_required()
+def get_inventory():
+    username = get_jwt_identity()
+    
+    try:
+        inventory_items = list(inventory_collection.find({}, {'_id': 0}))
+        return jsonify(inventory_items), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/inventory/<material_code>', methods=['PUT'])
+@jwt_required()
+def update_inventory_item(material_code):
+    username = get_jwt_identity()
+    data = request.get_json()
+    
+    try:
+        update_data = {
+            'quantity': data.get('quantity'),
+            'min_stock': data.get('min_stock'),
+            'max_stock': data.get('max_stock'),
+            'available': data.get('available'),
+            'reserved': data.get('reserved'),
+            'in_transit': data.get('in_transit'),
+            'warehouse': data.get('warehouse'),
+            'updated_by': username,
+            'updated_at': datetime.now(timezone.utc)
+        }
+        
+        # Remove None values
+        update_data = {k: v for k, v in update_data.items() if v is not None}
+        
+        result = inventory_collection.update_one(
+            {'material_code': material_code},
+            {'$set': update_data}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify({'error': 'Inventory item not found'}), 404
+            
+        return jsonify({'message': 'Inventory item updated successfully'}), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/inventory/initialize', methods=['POST'])
+@jwt_required()
+def initialize_inventory():
+    username = get_jwt_identity()
+    
+    # Material definitions based on dataset
+    material_definitions = [
+        { 
+            'material_code': 'steel_tons', 
+            'name': 'Steel (Tons)', 
+            'category': 'Structural Materials', 
+            'unit': 'tons',
+            'min_stock': 20,
+            'max_stock': 100,
+            'quantity': 50,
+            'available': 45,
+            'reserved': 3,
+            'in_transit': 2,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'copper_tons', 
+            'name': 'Copper (Tons)', 
+            'category': 'Conductors', 
+            'unit': 'tons',
+            'min_stock': 2,
+            'max_stock': 10,
+            'quantity': 5,
+            'available': 4,
+            'reserved': 1,
+            'in_transit': 0,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'cement_tons', 
+            'name': 'Cement (Tons)', 
+            'category': 'Construction Materials', 
+            'unit': 'tons',
+            'min_stock': 15,
+            'max_stock': 50,
+            'quantity': 30,
+            'available': 28,
+            'reserved': 2,
+            'in_transit': 0,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'aluminum_tons', 
+            'name': 'Aluminum (Tons)', 
+            'category': 'Conductors', 
+            'unit': 'tons',
+            'min_stock': 1,
+            'max_stock': 8,
+            'quantity': 4,
+            'available': 3,
+            'reserved': 1,
+            'in_transit': 0,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'insulators_count', 
+            'name': 'Insulators', 
+            'category': 'Electrical Equipment', 
+            'unit': 'pieces',
+            'min_stock': 30,
+            'max_stock': 100,
+            'quantity': 65,
+            'available': 60,
+            'reserved': 3,
+            'in_transit': 2,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'conductors_tons', 
+            'name': 'Conductors (Tons)', 
+            'category': 'Conductors', 
+            'unit': 'tons',
+            'min_stock': 15,
+            'max_stock': 50,
+            'quantity': 25,
+            'available': 22,
+            'reserved': 2,
+            'in_transit': 1,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'transformers_count', 
+            'name': 'Transformers', 
+            'category': 'Electrical Equipment', 
+            'unit': 'pieces',
+            'min_stock': 1,
+            'max_stock': 5,
+            'quantity': 3,
+            'available': 2,
+            'reserved': 1,
+            'in_transit': 0,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'switchgears_count', 
+            'name': 'Switchgears', 
+            'category': 'Electrical Equipment', 
+            'unit': 'pieces',
+            'min_stock': 3,
+            'max_stock': 8,
+            'quantity': 5,
+            'available': 4,
+            'reserved': 1,
+            'in_transit': 0,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'cables_count', 
+            'name': 'Cables', 
+            'category': 'Conductors', 
+            'unit': 'pieces',
+            'min_stock': 4,
+            'max_stock': 10,
+            'quantity': 7,
+            'available': 6,
+            'reserved': 1,
+            'in_transit': 0,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'protective_relays_count', 
+            'name': 'Protective Relays', 
+            'category': 'Protection Equipment', 
+            'unit': 'pieces',
+            'min_stock': 2,
+            'max_stock': 8,
+            'quantity': 4,
+            'available': 3,
+            'reserved': 1,
+            'in_transit': 0,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'oil_tons', 
+            'name': 'Transformer Oil (Tons)', 
+            'category': 'Electrical Equipment', 
+            'unit': 'tons',
+            'min_stock': 2,
+            'max_stock': 5,
+            'quantity': 3,
+            'available': 2,
+            'reserved': 1,
+            'in_transit': 0,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'foundation_concrete_tons', 
+            'name': 'Foundation Concrete (Tons)', 
+            'category': 'Construction Materials', 
+            'unit': 'tons',
+            'min_stock': 10,
+            'max_stock': 30,
+            'quantity': 20,
+            'available': 18,
+            'reserved': 2,
+            'in_transit': 0,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        },
+        { 
+            'material_code': 'bolts_count', 
+            'name': 'Bolts & Fasteners', 
+            'category': 'Structural Materials', 
+            'unit': 'pieces',
+            'min_stock': 1000,
+            'max_stock': 2000,
+            'quantity': 1500,
+            'available': 1400,
+            'reserved': 80,
+            'in_transit': 20,
+            'warehouse': 'Main Warehouse',
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        }
+    ]
+    
+    try:
+        # Check if inventory already exists
+        existing_count = inventory_collection.count_documents({})
+        if existing_count > 0:
+            return jsonify({'message': 'Inventory already initialized', 'count': existing_count}), 200
+        
+        # Insert all material definitions
+        result = inventory_collection.insert_many(material_definitions)
+        return jsonify({
+            'message': 'Inventory initialized successfully',
+            'count': len(result.inserted_ids)
+        }), 201
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

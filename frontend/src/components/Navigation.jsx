@@ -60,11 +60,11 @@ const Navigation = () => {
       <div className="px-4 py-4 border-t border-gray-700">
         <div className="flex items-center mb-3">
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-3">
-            AU
+            {user?.username ? user.username.substring(0, 2).toUpperCase() : 'U'}
           </div>
           <div>
-            <div className="text-sm font-medium text-white">Admin User</div>
-            <div className="text-xs text-gray-300">Admin</div>
+            <div className="text-sm font-medium text-white">{user?.username || 'User'}</div>
+            <div className="text-xs text-gray-300">{user?.role || 'User'}</div>
           </div>
         </div>
         <button
