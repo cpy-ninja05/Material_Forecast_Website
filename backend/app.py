@@ -304,7 +304,9 @@ def forecast():
     # Create DataFrame
     input_df = pd.DataFrame([input_data])
     
-    # Debug: Print data types
+    # Debug: Print input data and data types
+    print("Input data for forecast:")
+    print(input_data)
     print("Input data types:")
     for col in input_df.columns:
         print(f"{col}: {input_df[col].dtype}")
@@ -525,42 +527,42 @@ def get_dashboard_metrics():
 @jwt_required()
 def get_dashboard_trends():
     try:
-        # Get all forecasts from the last 6 months
-        six_months_ago = datetime.now(timezone.utc) - timedelta(days=180)
+        print("Dashboard trends endpoint called")
         
-        forecasts = list(forecasts_collection.find({
-            'created_at': {'$gte': six_months_ago}
-        }).sort('forecast_month', 1))
+        # Get all forecasts (remove date filter for now to get all data)
+        forecasts = list(forecasts_collection.find({}).sort('forecast_month', 1))
+        print(f"Found {len(forecasts)} total forecasts")
         
-        # Get all actual values from the last 6 months
-        actuals = list(material_actuals_collection.find({
-            'created_at': {'$gte': six_months_ago}
-        }).sort('month', 1))
-        
-        print(f"Dashboard trends debug - Found {len(forecasts)} forecasts and {len(actuals)} actual values")
-        for actual in actuals:
-            print(f"Actual data: month={actual.get('month')}, combined_score={actual.get('combined_score')}")
+        # Get all actual values (remove date filter for now)
+        actuals = list(material_actuals_collection.find({}).sort('month', 1))
+        print(f"Found {len(actuals)} total actual values")
         
         # Aggregate data by month
         monthly_data = {}
         
         # Process forecasts
         for forecast in forecasts:
-            month = forecast['forecast_month']
-            if month not in monthly_data:
-                monthly_data[month] = {'forecast': 0, 'actual': 0, 'month_name': month}
-            
-            # Calculate total forecast quantity
-            total_forecast = sum(forecast['predictions'].values())
-            monthly_data[month]['forecast'] = total_forecast
+            month = forecast.get('forecast_month')
+            if month and 'predictions' in forecast:
+                if month not in monthly_data:
+                    monthly_data[month] = {'forecast': 0, 'actual': 0, 'month_name': month}
+                
+                # Calculate total forecast quantity
+                try:
+                    total_forecast = sum(forecast['predictions'].values())
+                    monthly_data[month]['forecast'] = total_forecast
+                except (TypeError, ValueError) as e:
+                    print(f"Error processing forecast predictions: {e}")
+                    continue
         
         # Process actual values
         for actual in actuals:
-            month = actual['month']
-            if month not in monthly_data:
-                monthly_data[month] = {'forecast': 0, 'actual': 0, 'month_name': month}
-            
-            monthly_data[month]['actual'] = actual.get('combined_score', 0)
+            month = actual.get('month')
+            if month:
+                if month not in monthly_data:
+                    monthly_data[month] = {'forecast': 0, 'actual': 0, 'month_name': month}
+                
+                monthly_data[month]['actual'] = actual.get('combined_score', 0)
         
         # Convert to array and format for chart
         trend_data = []
@@ -575,26 +577,32 @@ def get_dashboard_trends():
                     'actual': round(data['actual'], 1)
                 })
                 print(f"Trend data: {month_name} - forecast={data['forecast']}, actual={data['actual']}")
-            except ValueError:
+            except ValueError as e:
+                print(f"Error parsing month {month_key}: {e}")
                 continue
         
         # If no data, return sample data for demo
         if not trend_data:
-            # Get current month and previous months
-            current_date = datetime.now(timezone.utc)
+            print("No trend data found, returning sample data")
+            # Use October 2025 as current month for demo
+            current_date = datetime(2025, 9, 1)  # October 2025
             months = []
             for i in range(6):
                 month_date = current_date.replace(day=1) - timedelta(days=i*30)
                 months.append({
                     'month': month_date.strftime('%b'),
-                    'forecast': 0,
-                    'actual': 0
+                    'forecast': 75 + i * 5,  # Sample increasing forecast
+                    'actual': 78 + i * 3     # Sample actual values
                 })
             months.reverse()
             trend_data = months
         
+        print(f"Returning {len(trend_data)} trend data points")
         return jsonify(trend_data)
     except Exception as e:
+        print(f"Error in dashboard trends: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Failed to fetch trends data: {str(e)}'}), 500
 
 @app.route('/api/forecasts', methods=['POST'])
