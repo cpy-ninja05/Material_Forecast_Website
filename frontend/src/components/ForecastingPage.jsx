@@ -216,21 +216,41 @@ const ForecastingPage = () => {
     setPredictions(null);
 
     try {
-      // Prepare forecast data with project info
+      // Get current month and year for forecast storage
+      const currentDate = new Date();
+      const currentMonth = currentDate.toISOString().slice(0, 7); // YYYY-MM format
+      
+      console.log('=== FORECAST GENERATION DEBUG ===');
+      console.log('Current date:', currentDate);
+      console.log('Current month:', currentMonth);
+      console.log('Selected project:', selectedProject?.project_id);
+      
+      // Prepare forecast data with project info and current month
       const forecastData = {
         ...formData,
         project_id: selectedProject ? selectedProject.project_id : 'unknown',
-        forecast_month: '2025-10' // Save forecast for October 2025
+        forecast_month: currentMonth // Save forecast for current month
       };
       
       console.log('Sending forecast data:', forecastData);
       console.log('Selected project:', selectedProject);
+      console.log('Forecast month:', currentMonth);
       
-      const response = await axios.post('http://localhost:5000/api/forecast', forecastData);
-      setPredictions(response.data.predictions);
+      const response = await axios.post('http://localhost:5000/api/forecast', forecastData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+            setPredictions(response.data.predictions);
+            console.log('Forecast saved successfully for month:', currentMonth);
+            
+            // Trigger dashboard refresh
+            window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+            console.log('Triggered dashboard refresh after generating new forecast');
     } catch (err) {
       if (err.response?.status === 400 && err.response?.data?.error?.includes('already exists')) {
-        setError(`Forecast already exists for 2025-10. You cannot create duplicate forecasts for the same month.`);
+        setError(`Forecast already exists for ${currentMonth}. You can update it by generating a new forecast.`);
       } else {
         setError(err.response?.data?.error || 'Forecasting failed');
       }
