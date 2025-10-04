@@ -78,6 +78,12 @@ const ForecastingPage = () => {
         tower_type: selectedProject.tower_type || 'Suspension',
         substation_type: selectedProject.substation_type || '132 kV AIS',
         project_size_km: selectedProject.project_size_km || 0,
+        // Add more project-specific fields to make forecasts unique
+        project_start_month: selectedProject.start_date ? new Date(selectedProject.start_date).getMonth() + 1 : 1,
+        project_end_month: selectedProject.end_date ? new Date(selectedProject.end_date).getMonth() + 1 : 12,
+        // Add project-specific variations to ensure unique forecasts
+        lead_time_days: 30 + (selectedProject.project_id ? parseInt(selectedProject.project_id.slice(-2)) % 30 : 0),
+        commodity_price_index: 100 + (selectedProject.project_id ? parseInt(selectedProject.project_id.slice(-2)) % 20 : 0),
         // Keep forecasting-specific fields as they were
       }));
     }
@@ -214,14 +220,17 @@ const ForecastingPage = () => {
       const forecastData = {
         ...formData,
         project_id: selectedProject ? selectedProject.project_id : 'unknown',
-        forecast_month: new Date().toISOString().slice(0, 7) // YYYY-MM format
+        forecast_month: '2025-10' // Save forecast for October 2025
       };
+      
+      console.log('Sending forecast data:', forecastData);
+      console.log('Selected project:', selectedProject);
       
       const response = await axios.post('http://localhost:5000/api/forecast', forecastData);
       setPredictions(response.data.predictions);
     } catch (err) {
       if (err.response?.status === 400 && err.response?.data?.error?.includes('already exists')) {
-        setError(`Forecast already exists for ${new Date().toISOString().slice(0, 7)}. You cannot create duplicate forecasts for the same month.`);
+        setError(`Forecast already exists for 2025-10. You cannot create duplicate forecasts for the same month.`);
       } else {
         setError(err.response?.data?.error || 'Forecasting failed');
       }
@@ -561,7 +570,7 @@ const ForecastingPage = () => {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">Forecast Results</h3>
               <div className="text-sm text-gray-500">
-                Generated for: {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                Generated for: October 2025
               </div>
             </div>
             

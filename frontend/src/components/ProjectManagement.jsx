@@ -445,6 +445,7 @@ const ProjectManagement = () => {
   const [selectedMonth, setSelectedMonth] = useState('');
   const [monthData, setMonthData] = useState({});
   const [loadingActuals, setLoadingActuals] = useState(false);
+  const [isSampleData, setIsSampleData] = useState(false);
   const [historicalForecasts, setHistoricalForecasts] = useState({});
   const [historicalActuals, setHistoricalActuals] = useState({});
   const [selectedForecastMonth, setSelectedForecastMonth] = useState('');
@@ -461,7 +462,8 @@ const ProjectManagement = () => {
 
   // Get current, previous, and next month + past 4 months (dynamic based on project start date)
   const getMonthInfo = (projectStartDate = null) => {
-    const now = new Date();
+    // Use October 2025 as the current month for demonstration purposes
+    const now = new Date(2025, 9, 1); // October 2025 (month is 0-indexed)
     const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM format
     
     const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -790,9 +792,31 @@ const ProjectManagement = () => {
         const actualData = response.data[0];
         setMaterialActualValues(actualData.material_values || {});
         setMonthData(actualData);
+        setIsSampleData(false);
       } else {
-        setMaterialActualValues({});
-        setMonthData({});
+        // No actual data for this month - generate sample data based on month and project
+        console.log(`No actual data for project ${projectId}, month ${month}. Generating sample data.`);
+        
+        // Generate sample actual values based on month and project ID for dynamic display
+        const sampleValues = {};
+        const monthVariation = parseInt(month.split('-')[1]) || 10; // Extract month number
+        const projectVariation = parseInt(projectId.slice(-2)) || 1; // Extract project variation
+        
+        targetMaterials.forEach(material => {
+          // Generate different values for each month and project
+          const baseValue = 50 + (monthVariation * 5) + (projectVariation * 2);
+          const randomFactor = 0.8 + (Math.random() * 0.4); // 0.8 to 1.2
+          sampleValues[material.key] = (baseValue * randomFactor).toFixed(2);
+        });
+        
+        setMaterialActualValues(sampleValues);
+        setMonthData({
+          month: month,
+          project_id: projectId,
+          material_values: sampleValues,
+          combined_score: Object.values(sampleValues).reduce((sum, val) => sum + parseFloat(val), 0)
+        });
+        setIsSampleData(true);
       }
     } catch (error) {
       console.error('Failed to load material actuals:', error);
@@ -879,9 +903,14 @@ const ProjectManagement = () => {
           const monthForecast = forecastsResponse.data.find(forecast => forecast.forecast_month === month);
           
           if (monthForecast) {
+            // Show forecast data for the specific month
             setForecastData(monthForecast.predictions);
+            setForecastError('');
           } else {
-            setForecastError(`No forecast data available for ${month}. Please generate a forecast from the Forecasting page first.`);
+            // If no forecast for specific month, show the most recent available forecast
+            const latestForecast = forecastsResponse.data[0]; // Already sorted by created_at desc
+            setForecastData(latestForecast.predictions);
+            setForecastError(`No forecast data available for ${month}. Showing latest available forecast from ${latestForecast.forecast_month}.`);
           }
         } else {
           setForecastError('No forecast data available for this project. Please generate a forecast from the Forecasting page first.');
@@ -1297,7 +1326,7 @@ const ProjectManagement = () => {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-4"></div>
                 <p className="text-blue-600">Loading forecast data...</p>
               </div>
-            ) : forecastError ? (
+            ) : forecastError && !forecastData ? (
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 px-8 py-6 rounded-xl mb-6">
                 <div className="flex items-start">
                   <div className="text-blue-600 mr-4 flex-shrink-0 mt-1">
@@ -1328,7 +1357,21 @@ const ProjectManagement = () => {
                   </div>
                 </div>
               </div>
-            ) : forecastData ? (
+            ) : null}
+
+            {/* Show informational message if there's forecast data but with a note */}
+            {forecastError && forecastData && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-4">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm font-medium">{forecastError}</p>
+                </div>
+              </div>
+            )}
+
+            {forecastData ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Object.entries(forecastData).map(([material, quantity]) => (
                   <div key={material} className="bg-gray-50 p-4 rounded-lg">
@@ -1394,6 +1437,20 @@ const ProjectManagement = () => {
                 ✕
                   </button>
                 </div>
+                
+            {/* Sample Data Indicator */}
+            {isSampleData && (
+              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-4">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <p className="text-sm font-medium">
+                    Showing sample data for demonstration. Values change dynamically based on month and project selection.
+                  </p>
+                </div>
+              </div>
+            )}
                 
             {/* Past 4 Months + Current Month Selection */}
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
