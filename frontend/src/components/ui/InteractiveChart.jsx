@@ -15,7 +15,8 @@ const InteractiveChart = ({
     const baseOptions = {
       chart: {
         type: type,
-        height: height,
+        height: '100%',
+        width: '100%',            // ✅ Added: make chart responsive to container width
         toolbar: {
           show: showToolbar,
           tools: {
@@ -65,59 +66,33 @@ const InteractiveChart = ({
       grid: {
         borderColor: '#E5E7EB',
         strokeDashArray: 4,
-        xaxis: {
-          lines: {
-            show: true
-          }
-        },
-        yaxis: {
-          lines: {
-            show: true
-          }
-        }
+        xaxis: { lines: { show: true } },
+        yaxis: { lines: { show: true } }
       },
       xaxis: {
         labels: {
-          style: {
-            colors: '#6B7280',
-            fontSize: '12px'
-          }
+          style: { colors: '#6B7280', fontSize: '12px' }
         },
-        axisBorder: {
-          show: false
-        },
-        axisTicks: {
-          show: false
-        }
+        axisBorder: { show: false },
+        axisTicks: { show: false }
       },
       yaxis: {
         labels: {
-          style: {
-            colors: '#6B7280',
-            fontSize: '12px'
-          },
+          style: { colors: '#6B7280', fontSize: '12px' },
           formatter: (value) => {
-            if (value >= 1000000) {
-              return (value / 1000000).toFixed(1) + 'M';
-            } else if (value >= 1000) {
-              return (value / 1000).toFixed(1) + 'K';
-            }
+            if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+            if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
             return value.toFixed(0);
           }
         }
       },
       tooltip: {
         theme: 'light',
-        style: {
-          fontSize: '12px'
-        },
+        style: { fontSize: '12px' },
         y: {
           formatter: (value) => {
-            if (value >= 1000000) {
-              return (value / 1000000).toFixed(2) + 'M';
-            } else if (value >= 1000) {
-              return (value / 1000).toFixed(1) + 'K';
-            }
+            if (value >= 1000000) return (value / 1000000).toFixed(2) + 'M';
+            if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
             return value.toFixed(2);
           }
         }
@@ -127,38 +102,28 @@ const InteractiveChart = ({
         position: 'top',
         horizontalAlign: 'right',
         fontSize: '12px',
-        markers: {
-          width: 8,
-          height: 8,
-          radius: 2
-        }
+        markers: { width: 8, height: 8, radius: 2 }
       },
-      dataLabels: {
-        enabled: false
-      }
+      dataLabels: { enabled: false },
+      responsive: [
+        {
+          breakpoint: 768,
+          options: { chart: { height: 250 } }
+        }
+      ]
     };
 
     if (type === 'bar') {
       return {
         ...baseOptions,
-        plotOptions: {
-          bar: {
-            borderRadius: 4,
-            columnWidth: '60%',
-            distributed: false
-          }
-        }
+        plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } }
       };
     }
 
     if (type === 'area') {
       return {
         ...baseOptions,
-        plotOptions: {
-          area: {
-            fillTo: 'end'
-          }
-        }
+        plotOptions: { area: { fillTo: 'end' } }
       };
     }
 
@@ -172,15 +137,17 @@ const InteractiveChart = ({
           {title}
         </h3>
       )}
-      <Chart
-        options={getDefaultOptions()}
-        series={data}
-        type={type}
-        height={height}
-      />
+      <div className="w-full h-[300px]"> {/* ✅ container ensures full width */}
+        <Chart
+          options={getDefaultOptions()}
+          series={data}
+          type={type}
+          height="100%"
+          width="100%"
+        />
+      </div>
     </div>
   );
 };
 
 export default InteractiveChart;
-

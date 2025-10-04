@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Calculator, TrendingUp, Package, MapPin, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calculator, AlertCircle, Building, RefreshCw, TrendingUp } from 'lucide-react';
 import axios from 'axios';
 
 const ForecastingPage = () => {
@@ -9,17 +9,199 @@ const ForecastingPage = () => {
     substation_type: '132 kV AIS',
     region_risk_flag: 'Low',
     budget: 30000000,
-    project_size_km: 100
+    project_size_km: 100,
+    tax_rate: 18,
+    project_start_month: 1,
+    project_end_month: 12,
+    lead_time_days: 45,
+    commodity_price_index: 105
   });
 
   const [predictions, setPredictions] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [projectsLoading, setProjectsLoading] = useState(true);
 
-  const locationOptions = ['North', 'South', 'East', 'West', 'Central'];
-  const towerTypeOptions = ['Tension', 'Transposition', 'Terminal', 'Suspension'];
-  const substationTypeOptions = ['132 kV AIS', '132 kV GIS', '220 kV AIS', '400 kV GIS'];
+  const locationOptions = ['South', 'North', 'East', 'West', 'Central'];
+  const towerTypeOptions = ['Suspension', 'Tension', 'Terminal', 'Transposition'];
+  const substationTypeOptions = [
+    '132 kV AIS', '132 kV GIS', '220 kV AIS', '220 kV GIS', 
+    '400 kV AIS', '400 kV GIS', '765 kV AIS', '765 kV GIS', 'HVDC'
+  ];
   const riskOptions = ['Low', 'Medium', 'High'];
+
+  // Load projects on component mount
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        console.log('Loading projects...');
+        const response = await axios.get('http://localhost:5000/api/projects', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        console.log('Projects response:', response.data);
+        setProjects(response.data || []);
+      } catch (error) {
+        console.error('Failed to load projects:', error);
+        setProjects([]);
+      } finally {
+        setProjectsLoading(false);
+      }
+    };
+    loadProjects();
+    
+    // Check if redirected from ProjectManagement with a selected project
+    const selectedProjectData = localStorage.getItem('selectedProjectForForecast');
+    if (selectedProjectData) {
+      try {
+        const project = JSON.parse(selectedProjectData);
+        setSelectedProject(project);
+        // Clear the stored data after using it
+        localStorage.removeItem('selectedProjectForForecast');
+      } catch (error) {
+        console.error('Failed to parse selected project data:', error);
+        localStorage.removeItem('selectedProjectForForecast');
+      }
+    }
+  }, []);
+
+  // Update form data when project is selected
+  useEffect(() => {
+    if (selectedProject) {
+      setFormData(prev => ({
+        ...prev,
+        project_location: selectedProject.location || 'North',
+        budget: selectedProject.cost || 30000000,
+        tower_type: selectedProject.tower_type || 'Suspension',
+        substation_type: selectedProject.substation_type || '132 kV AIS',
+        project_size_km: selectedProject.project_size_km || 0,
+        // Keep forecasting-specific fields as they were
+      }));
+    }
+  }, [selectedProject]);
+  
+  // Target materials from the model
+  const targetMaterials = [
+    'quantity_steel_tons',
+    'quantity_copper_tons', 
+    'quantity_cement_tons',
+    'quantity_aluminum_tons',
+    'quantity_insulators_count',
+    'quantity_conductors_tons',
+    'quantity_transformers_count',
+    'quantity_switchgears_count',
+    'quantity_cables_count',
+    'quantity_protective_relays_count',
+    'quantity_oil_tons',
+    'quantity_foundation_concrete_tons',
+    'quantity_bolts_count'
+  ];
+
+  // Sample forecast data matching the image
+  const sampleForecasts = [
+    {
+      material: "Steel Tower",
+      project: "Mumbai-Pune Transmission Line",
+      quantity: 366.21,
+      unit: "pcs",
+      range: "292.97 - 439.45",
+      confidence: 93.0,
+      period: "November 2025",
+      status: "high"
+    },
+    {
+      material: "Conductor Cable",
+      project: "Mumbai-Pune Transmission Line",
+      quantity: 239.59,
+      unit: "km",
+      range: "191.67 - 287.51",
+      confidence: 90.0,
+      period: "November 2025",
+      status: "high"
+    },
+    {
+      material: "Insulator",
+      project: "Mumbai-Pune Transmission Line",
+      quantity: 474.56,
+      unit: "pcs",
+      range: "379.65 - 569.48",
+      confidence: 76.0,
+      period: "November 2025",
+      status: "low"
+    },
+    {
+      material: "Steel Tower",
+      project: "Delhi Grid Substation",
+      quantity: 312.5,
+      unit: "pcs",
+      range: "250 - 375",
+      confidence: 77.0,
+      period: "November 2025",
+      status: "low"
+    },
+    {
+      material: "Conductor Cable",
+      project: "Delhi Grid Substation",
+      quantity: 461.89,
+      unit: "km",
+      range: "369.51 - 554.26",
+      confidence: 94.0,
+      period: "November 2025",
+      status: "high"
+    },
+    {
+      material: "Insulator",
+      project: "Delhi Grid Substation",
+      quantity: 407.18,
+      unit: "pcs",
+      range: "325.74 - 488.62",
+      confidence: 84.0,
+      period: "November 2025",
+      status: "medium"
+    },
+    {
+      material: "Steel Tower",
+      project: "Bangalore Ring Road Transmission",
+      quantity: 53.49,
+      unit: "pcs",
+      range: "42.79 - 64.19",
+      confidence: 80.0,
+      period: "November 2025",
+      status: "medium"
+    },
+    {
+      material: "Conductor Cable",
+      project: "Bangalore Ring Road Transmission",
+      quantity: 132.45,
+      unit: "km",
+      range: "105.96 - 158.94",
+      confidence: 78.0,
+      period: "November 2025",
+      status: "low"
+    }
+  ];
+
+  const refreshProjects = async () => {
+    setProjectsLoading(true);
+    try {
+      console.log('Refreshing projects...');
+      const response = await axios.get('http://localhost:5000/api/projects', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      console.log('Refreshed projects:', response.data);
+      setProjects(response.data || []);
+    } catch (error) {
+      console.error('Failed to refresh projects:', error);
+      setProjects([]);
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,10 +210,21 @@ const ForecastingPage = () => {
     setPredictions(null);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/forecast', formData);
+      // Prepare forecast data with project info
+      const forecastData = {
+        ...formData,
+        project_id: selectedProject ? selectedProject.project_id : 'unknown',
+        forecast_month: new Date().toISOString().slice(0, 7) // YYYY-MM format
+      };
+      
+      const response = await axios.post('http://localhost:5000/api/forecast', forecastData);
       setPredictions(response.data.predictions);
     } catch (err) {
-      setError(err.response?.data?.error || 'Forecasting failed');
+      if (err.response?.status === 400 && err.response?.data?.error?.includes('already exists')) {
+        setError(`Forecast already exists for ${new Date().toISOString().slice(0, 7)}. You cannot create duplicate forecasts for the same month.`);
+      } else {
+        setError(err.response?.data?.error || 'Forecasting failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -45,106 +238,189 @@ const ForecastingPage = () => {
     }));
   };
 
-  const formatMaterialName = (name) => {
-    // Material names are already properly formatted from backend
-    return name;
+  const getConfidenceColor = (confidence) => {
+    if (confidence >= 90) return 'text-green-600';
+    if (confidence >= 80) return 'text-orange-600';
+    return 'text-red-600';
   };
 
-  const formatValue = (value, unit) => {
-    if (unit === 'tons') {
-      return `${value.toFixed(2)} tons`;
-    } else if (unit === 'count') {
-      return `${Math.round(value)} units`;
-    }
-    return value.toFixed(2);
+  const getStatusIcon = (status) => {
+    if (status === 'high') return '✓';
+    if (status === 'medium') return '!';
+    return '⚠';
   };
 
-  const getUnit = (materialName) => {
-    if (materialName.includes('Tons')) return 'tons';
-    if (materialName.includes('Count')) return 'units';
-    return '';
+  const getStatusColor = (status) => {
+    if (status === 'high') return 'text-green-600';
+    if (status === 'medium') return 'text-orange-600';
+    return 'text-red-600';
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-          <Calculator className="h-8 w-8 mr-3 text-indigo-600" />
-          Material Demand Forecasting
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Predict material requirements for your power grid projects
-        </p>
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="px-8 py-8">
+          <h1 className="text-3xl font-bold text-gray-900">Material Demand Forecasting</h1>
+          <p className="text-gray-600 mt-2">AI-powered predictions for next month's material requirements</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Input Form */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Package className="h-5 w-5 mr-2 text-blue-600" />
+      <div className="p-8 space-y-8">
+        {/* Project Parameters Form */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+            <Calculator className="h-5 w-5 mr-2 text-blue-600" />
             Project Parameters
           </h2>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project Location
-              </label>
-              <select
-                name="project_location"
-                value={formData.project_location}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                {locationOptions.map(location => (
-                  <option key={location} value={location}>{location}</option>
-                ))}
-              </select>
+          {/* Project Selection */}
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-2 mb-4">
+              <Building className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-medium text-blue-900">Select Project</h3>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tower Type
-              </label>
-              <select
-                name="tower_type"
-                value={formData.tower_type}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                {towerTypeOptions.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Choose Project
+                </label>
+                <select
+                  value={selectedProject ? selectedProject.project_id : ''}
+                  onChange={(e) => {
+                    const project = projects.find(p => p.project_id === e.target.value);
+                    setSelectedProject(project || null);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={projectsLoading}
+                >
+                  <option value="">{projectsLoading ? 'Loading projects...' : projects.length === 0 ? 'No projects available' : 'Select a project'}</option>
+                  {projects.map(project => (
+                    <option key={project.project_id} value={project.project_id}>
+                      {project.name} - {project.location}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:ml-4">
+                <button
+                  type="button"
+                  onClick={refreshProjects}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 text-sm whitespace-nowrap"
+                  disabled={projectsLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${projectsLoading ? 'animate-spin' : ''}`} />
+                  Refresh Projects
+                </button>
+              </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Substation Type
-              </label>
-              <select
-                name="substation_type"
-                value={formData.substation_type}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                {substationTypeOptions.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+            {selectedProject && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200 mt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Building className="h-4 w-4 text-blue-600" />
+                  <h4 className="text-sm font-semibold text-blue-900">Project Details</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Project Name</div>
+                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                      <span>{selectedProject.name}</span>
+                      <span className="text-gray-400 text-xs">-</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Location</div>
+                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                      <span>{selectedProject.location}</span>
+                      <span className="text-green-600 text-xs">✓</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Tower Type</div>
+                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                      <span>{selectedProject.tower_type || 'Not set'}</span>
+                      <span className="text-green-600 text-xs">✓</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Substation Type</div>
+                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                      <span>{selectedProject.substation_type || 'Not set'}</span>
+                      <span className="text-green-600 text-xs">✓</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Project Size</div>
+                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                      <span>{parseFloat(selectedProject.project_size_km || 0)} km</span>
+                      <span className="text-green-600 text-xs">✓</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Budget</div>
+                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                      <span>₹{(selectedProject.cost / 1000000).toFixed(1)}M</span>
+                      <span className="text-green-600 text-xs">✓</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Start Date</div>
+                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                      <span>{selectedProject.start_date ? new Date(selectedProject.start_date).toLocaleDateString('en-GB') : 'Not set'}</span>
+                      <span className="text-green-600 text-xs">✓</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">End Date</div>
+                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                      <span>{selectedProject.end_date ? new Date(selectedProject.end_date).toLocaleDateString('en-GB') : 'Not set'}</span>
+                      <span className="text-green-600 text-xs">✓</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-3 p-2 bg-blue-100 rounded-md">
+                  <div className="text-xs text-blue-700 flex items-center gap-1">
+                    <span className="text-green-600">✓</span>
+                    Fields marked with checkmark are automatically populated from project data
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Forecasting Parameters */}
+          <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Calculator className="h-4 w-4 text-yellow-600" />
+              <h3 className="text-sm font-medium text-yellow-900">Additional Forecasting Parameters Required</h3>
             </div>
-
+            <p className="text-xs text-yellow-700">
+              Please provide the following technical specifications for accurate material forecasting:
+            </p>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Risk Level
+                Region Risk Flag *
               </label>
               <select
                 name="region_risk_flag"
                 value={formData.region_risk_flag}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                required
               >
+                <option value="">Select Risk Level</option>
                 {riskOptions.map(risk => (
                   <option key={risk} value={risk}>{risk}</option>
                 ))}
@@ -153,63 +429,91 @@ const ForecastingPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Budget (₹)
+                Tax Rate (%)
               </label>
               <input
                 type="number"
-                name="budget"
-                value={formData.budget}
+                name="tax_rate"
+                value={formData.tax_rate}
                 onChange={handleChange}
-                min="1000000"
-                max="500000000"
+                min="0"
+                max="30"
+                step="0.1"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter exact budget amount (₹1M - ₹500M)"
+                placeholder="Tax rate percentage"
               />
-              <div className="mt-1 text-xs text-gray-500">
-                Any value from ₹1M to ₹500M | Typical: ₹5M - ₹70M | Suggested: ₹30M
-              </div>
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, budget: 10000000 }))}
-                  className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
-                >
-                  ₹10M
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, budget: 30000000 }))}
-                  className="px-2 py-1 text-xs bg-indigo-100 hover:bg-indigo-200 rounded"
-                >
-                  ₹30M
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, budget: 50000000 }))}
-                  className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
-                >
-                  ₹50M
-                </button>
-              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project Size (km)
+                Project Start Month *
+              </label>
+              <select
+                name="project_start_month"
+                value={formData.project_start_month}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                required
+              >
+                <option value="">Select Start Month</option>
+                {Array.from({length: 12}, (_, i) => (
+                  <option key={i+1} value={i+1}>{new Date(2024, i).toLocaleDateString('en-US', { month: 'long' })}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Project End Month *
+              </label>
+              <select
+                name="project_end_month"
+                value={formData.project_end_month}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                required
+              >
+                <option value="">Select End Month</option>
+                {Array.from({length: 12}, (_, i) => (
+                  <option key={i+1} value={i+1}>{new Date(2024, i).toLocaleDateString('en-US', { month: 'long' })}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lead Time (Days)
               </label>
               <input
                 type="number"
-                name="project_size_km"
-                value={formData.project_size_km}
+                name="lead_time_days"
+                value={formData.lead_time_days}
                 onChange={handleChange}
-                min="10"
-                max="500"
-                step="10"
+                min="1"
+                max="365"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter project size"
+                placeholder="Lead time in days"
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Commodity Price Index
+              </label>
+              <input
+                type="number"
+                name="commodity_price_index"
+                value={formData.commodity_price_index}
+                onChange={handleChange}
+                min="50"
+                max="200"
+                step="0.1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Commodity price index"
+              />
+            </div>
+
+            <div className="md:col-span-2 lg:col-span-3">
             <button
               type="submit"
               disabled={loading}
@@ -227,6 +531,7 @@ const ForecastingPage = () => {
                 </>
               )}
             </button>
+            </div>
           </form>
 
           {error && (
@@ -235,52 +540,81 @@ const ForecastingPage = () => {
               {error}
             </div>
           )}
-        </div>
 
-        {/* Results */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
-            Forecasted Material Requirements
-          </h2>
-
-          {predictions ? (
-            <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
-                <p className="font-medium">Forecast generated successfully!</p>
-                <p className="text-sm">Based on your project parameters</p>
+      {predictions && (
+        <div className="mt-6">
+          {/* Success Message */}
+          <div className="bg-green-50 border border-green-200 text-green-800 px-6 py-4 rounded-lg mb-6">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <div>
+                <h3 className="font-semibold text-green-900">Forecast Generated Successfully!</h3>
+                <p className="text-sm text-green-700 mt-1">Forecast data has been saved to the database and can be viewed in the Projects section.</p>
               </div>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-1 gap-3">
-                {Object.entries(predictions).map(([material, value]) => (
-                  <div key={material} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <span className="font-medium text-gray-700">
-                      {formatMaterialName(material)}
-                    </span>
-                    <span className="font-bold text-indigo-600">
-                      {formatValue(value, getUnit(material))}
-                    </span>
+          {/* Forecast Results Display */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">Forecast Results</h3>
+              <div className="text-sm text-gray-500">
+                Generated for: {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(predictions).map(([material, quantity]) => (
+                <div key={material} className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-4 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-medium text-sm text-blue-900">
+                      {material.replace('quantity_', '').replace('_', ' ').toUpperCase()}
+                    </div>
+                    <div className="text-blue-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
                   </div>
-                ))}
-              </div>
+                  <div className="text-2xl font-bold text-blue-900 mb-1">
+                    {quantity.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-blue-600 font-medium">
+                    {material.includes('tons') ? 'Tons' : 
+                     material.includes('count') ? 'Units' : 'Units'}
+                  </div>
+                </div>
+              ))}
+            </div>
 
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <h3 className="font-semibold text-blue-900 mb-2">Procurement Recommendations:</h3>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Plan procurement 45-60 days in advance</li>
-                  <li>• Consider bulk purchasing for cost optimization</li>
-                  <li>• Monitor commodity price index for timing</li>
-                  <li>• Account for lead time variations by region</li>
-                </ul>
+            {/* Summary Statistics */}
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-gray-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-gray-900 mb-1">
+                  {Object.keys(predictions).length}
+                </div>
+                <div className="text-sm text-gray-600">Materials Forecasted</div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-gray-900 mb-1">
+                  {Object.values(predictions).reduce((sum, qty) => sum + qty, 0).toFixed(1)}
+                </div>
+                <div className="text-sm text-gray-600">Total Quantity</div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-gray-900 mb-1">
+                  {selectedProject ? selectedProject.name : 'Current Project'}
+                </div>
+                <div className="text-sm text-gray-600">Project Name</div>
               </div>
             </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>Enter project parameters and click "Generate Forecast" to see material requirements</p>
-            </div>
-          )}
+          </div>
         </div>
+      )}
+        </div>
+
       </div>
     </div>
   );

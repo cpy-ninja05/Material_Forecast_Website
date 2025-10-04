@@ -10,6 +10,10 @@ import PlanningApprovals from './components/PlanningApprovals';
 import OperationsMaintenance from './components/OperationsMaintenance';
 import LoadDispatch from './components/LoadDispatch';
 import MapView from './components/MapView';
+import ProjectManagement from './components/ProjectManagement';
+import SupplierManagement from './components/SupplierManagement';
+import PurchaseRequests from './components/PurchaseRequests';
+import Inventory from './components/Inventory';
 import Navigation from './components/Navigation';
 import './App.css';
 
@@ -31,12 +35,16 @@ const AppContent = () => {
   return (
     <>
       <Navigation />
-      <main>
+      <main className="ml-64">
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/forecasting" element={<ForecastingPage />} />
+          <Route path="/procurement" element={<PurchaseRequests />} />
           <Route path="/materials" element={<MaterialsPage />} />
           <Route path="/map" element={<MapView />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/projects" element={<ProjectManagement />} />
+          <Route path="/suppliers" element={<SupplierManagement />} />
           <Route path="/planning" element={<PlanningApprovals />} />
           <Route path="/om" element={<OperationsMaintenance />} />
           <Route path="/dispatch" element={<LoadDispatch />} />
