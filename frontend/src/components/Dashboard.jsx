@@ -5,8 +5,10 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import MetricCard from './ui/MetricCard';
 import InteractiveChart from './ui/InteractiveChart';
 import DataTable from './ui/DataTable';
+import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [overview, setOverview] = useState(null);
   const [materialsTrend, setMaterialsTrend] = useState(null);
   const [projects, setProjects] = useState([]);
@@ -184,7 +186,7 @@ const Dashboard = () => {
         <div className="px-8 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Good Morning, Admin!</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Good Morning, {user?.username || 'User'}!</h1>
               <p className="text-gray-600 mt-2">Here's what's happening with your materials forecasting platform today.</p>
             </div>
             <div className="flex gap-3">
