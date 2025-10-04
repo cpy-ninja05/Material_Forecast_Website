@@ -10,14 +10,14 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient, errors
 
 app = Flask(__name__)
-app.config['JWT_SECRET_KEY'] = 'powergrid-secret-key-2025'
+app.config['JWT_SECRET_KEY'] = 'plangrid-secret-key-2025'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 jwt = JWTManager(app)
 CORS(app)
 
 # Initialize MongoDB
 def init_db():
-    mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/POWERGRID_DATA')
+    mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/PLANGRID_DATA')
     db_name = os.getenv('MONGO_DB', 'material_forecast')
 
     client = MongoClient(mongo_uri)
@@ -556,11 +556,13 @@ def get_dashboard_metrics():
             forecast_accuracy = 0.0
             print("No forecasts with actual values found")
         
-        # Get pending orders count (placeholder - you can implement orders collection later)
-        pending_orders = 0  # orders_collection.count_documents({'status': 'PENDING'})
+        # Get pending orders count from orders collection
+        pending_orders = orders_collection.count_documents({'status': 'PENDING'})
         
-        # Get total orders count (placeholder - you can implement orders collection later)
-        total_orders = 0  # orders_collection.count_documents({})
+        # Get total orders count from orders collection
+        total_orders = orders_collection.count_documents({})
+        
+        print(f"Orders data: pending={pending_orders}, total={total_orders}")
         
         # Calculate projects added this month
         current_month = datetime.now(timezone.utc).strftime('%Y-%m')
@@ -582,7 +584,8 @@ def get_dashboard_metrics():
             'debug_info': {
                 'forecasts_with_actuals_count': len(forecasts_with_actuals),
                 'individual_accuracies': individual_accuracies if 'individual_accuracies' in locals() else [],
-                'calculation_details': f"{total_accuracy:.1f} / {count} = {forecast_accuracy}%" if count > 0 else "No data"
+                'calculation_details': f"{total_accuracy:.1f} / {count} = {forecast_accuracy}%" if count > 0 else "No data",
+                'orders_data': f"pending={pending_orders}, total={total_orders}"
             }
         }
         
@@ -1312,6 +1315,28 @@ def initialize_inventory():
         }), 201
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/materials', methods=['GET'])
+@jwt_required()
+def get_materials():
+    try:
+        # Get materials from target_cols (predicted materials)
+        materials = []
+        for col in target_cols:
+            # Convert column names to readable material names and remove "Quantity" prefix
+            material_name = col.replace('_', ' ').title()
+            # Remove "Quantity" prefix if it exists
+            if material_name.startswith('Quantity '):
+                material_name = material_name.replace('Quantity ', '')
+            materials.append({
+                'id': col,
+                'name': material_name,
+                'unit': 'tons' if 'tons' in col.lower() else 'units'
+            })
+        
+        return jsonify(materials)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch materials: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
