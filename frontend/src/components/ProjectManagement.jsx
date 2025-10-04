@@ -8,6 +8,8 @@ const EditProjectForm = ({ project, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     name: project.name || '',
     location: project.location || '',
+    state: project.state || '',
+    city: project.city || '',
     status: project.status || 'PLANNED',
     tower_type: project.tower_type || 'Suspension',
     substation_type: project.substation_type || '132 kV AIS',
@@ -50,16 +52,49 @@ const EditProjectForm = ({ project, onSave, onCancel }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Location
+            State/Province
           </label>
           <input
             type="text"
-            name="location"
-            value={formData.location}
+            name="state"
+            value={formData.state}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            City
+          </label>
+          <input
+            type="text"
+            name="city"
+            value={formData.city}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Specific Location
+          </label>
+          <select
+            name="location"
+            value={formData.location}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Select specific location</option>
+            <option value="South">South</option>
+            <option value="East">East</option>
+            <option value="West">West</option>
+            <option value="North">North</option>
+            <option value="Central">Central</option>
+          </select>
         </div>
 
         <div>
@@ -221,6 +256,8 @@ const CreateProjectForm = ({ onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '',
     location: '',
+    state: '',
+    city: '',
     status: 'PLANNED',
     tower_type: 'Suspension',
     substation_type: '132 kV AIS',
@@ -264,17 +301,51 @@ const CreateProjectForm = ({ onSave, onCancel }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Location *
+            State/Province *
           </label>
           <input
             type="text"
+            name="state"
+            value={formData.state}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Enter state or province"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            City *
+          </label>
+          <input
+            type="text"
+            name="city"
+            value={formData.city}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Enter city name"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Specific Location
+          </label>
+          <select
             name="location"
             value={formData.location}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter project location"
-            required
-          />
+          >
+            <option value="">Select specific location</option>
+            <option value="South">South</option>
+            <option value="East">East</option>
+            <option value="West">West</option>
+            <option value="North">North</option>
+            <option value="Central">Central</option>
+          </select>
         </div>
 
         <div>
@@ -442,13 +513,8 @@ const ProjectManagement = () => {
   const [actualValues, setActualValues] = useState({});
   const [forecastData, setForecastData] = useState(null);
   const [materialActualValues, setMaterialActualValues] = useState({});
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [monthData, setMonthData] = useState({});
   const [loadingActuals, setLoadingActuals] = useState(false);
   const [isSampleData, setIsSampleData] = useState(false);
-  const [historicalForecasts, setHistoricalForecasts] = useState({});
-  const [historicalActuals, setHistoricalActuals] = useState({});
-  const [selectedForecastMonth, setSelectedForecastMonth] = useState('');
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState('');
   const [projectForecasts, setProjectForecasts] = useState({});
@@ -457,70 +523,7 @@ const ProjectManagement = () => {
   const [editingProject, setEditingProject] = useState(null);
   const [deletingProject, setDeletingProject] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [currentProjectMonthInfo, setCurrentProjectMonthInfo] = useState(null);
   const [error, setError] = useState('');
-
-  // Get current, previous, and next month + past 4 months (dynamic based on project start date)
-  const getMonthInfo = (projectStartDate = null) => {
-    // Use October 2025 as the current month for demonstration purposes
-    const now = new Date(2025, 9, 1); // October 2025 (month is 0-indexed)
-    const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM format
-    
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevMonthStr = prevMonth.toISOString().slice(0, 7);
-    
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    const nextMonthStr = nextMonth.toISOString().slice(0, 7);
-    
-    // Calculate the earliest month we can show
-    let earliestMonth = new Date(now.getFullYear(), now.getMonth() - 4, 1);
-    if (projectStartDate) {
-      const projectStart = new Date(projectStartDate);
-      // If project hasn't started yet, show months from project start to current month
-      if (projectStart > now) {
-        // Project is in the future - show current month only
-        earliestMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      } else {
-        // Project has started - use the later of project start date or 4 months ago
-        // Convert project start to month start for comparison
-        const projectStartMonth = new Date(projectStart.getFullYear(), projectStart.getMonth(), 1);
-        earliestMonth = projectStartMonth > earliestMonth ? projectStartMonth : earliestMonth;
-      }
-    }
-    
-    // Generate months from current month back to earliest possible month (max 5 months)
-    const pastMonths = [];
-    let currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    console.log('Month generation debug:');
-    console.log('Current date:', currentDate);
-    console.log('Earliest month:', earliestMonth);
-    console.log('Current date >= earliestMonth:', currentDate >= earliestMonth);
-    
-    for (let i = 0; i < 5 && currentDate >= earliestMonth; i++) {
-      const monthValue = currentDate.toISOString().slice(0, 7);
-      const monthDisplay = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      pastMonths.push({ value: monthValue, display: monthDisplay });
-      console.log(`Added month ${i + 1}:`, monthValue, monthDisplay);
-      
-      // Move to previous month
-      currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-    }
-    
-    console.log('Final pastMonths:', pastMonths);
-    
-    return {
-      current: currentMonth,
-      previous: prevMonthStr,
-      next: nextMonthStr,
-      currentDisplay: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-      previousDisplay: prevMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-      nextDisplay: nextMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-      pastMonths: pastMonths
-    };
-  };
-
-  const monthInfo = getMonthInfo();
 
   // Target materials from the model
   const targetMaterials = [
@@ -539,6 +542,8 @@ const ProjectManagement = () => {
     { key: 'quantity_bolts_count', name: 'Bolts', unit: 'units' }
   ];
 
+  // Debug: Log month info when component loads
+  // Load projects on component mount
   useEffect(() => {
     loadProjects();
   }, []);
@@ -641,115 +646,20 @@ const ProjectManagement = () => {
     console.log('Generating forecast for project:', project);
     setSelectedProject(project);
     
-    // Check if project has started
-    const today = new Date();
-    const projectStartDate = new Date(project.start_date);
-    const hasProjectStarted = projectStartDate <= today;
-    console.log('Project start date:', project.start_date);
-    console.log('Today:', today.toISOString().slice(0, 10));
-    console.log('Has project started:', hasProjectStarted);
+    // Load existing forecast data for this project
+    await loadProjectData(project.project_id);
     
-    // Get month info based on project start date
-    const projectMonthInfo = getMonthInfo(project.start_date);
-    console.log('Project month info:', projectMonthInfo);
-    setCurrentProjectMonthInfo(projectMonthInfo);
-    
-    // Check if there are any available months
-    if (!projectMonthInfo.pastMonths || projectMonthInfo.pastMonths.length === 0) {
-      console.log('No months available');
-      if (!hasProjectStarted) {
-        setForecastError('Project has not started yet. You can still generate forecasts for future planning.');
-        setShowForecastModal(true);
-        return;
-      } else {
-        setForecastError('No months available for this project.');
-        setShowForecastModal(true);
-        return;
-      }
-    }
-    
-    // Start with current month (first month in pastMonths array)
-    const currentMonth = projectMonthInfo.current;
-    console.log('Setting selected forecast month to current month:', currentMonth);
-    setSelectedForecastMonth(currentMonth);
-    setForecastLoading(true);
-    setForecastError('');
-    
-    try {
-      // Load existing forecast data from database
-      const forecastsResponse = await axios.get(`http://localhost:5000/api/projects/${project.project_id}/forecasts`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      console.log('Forecasts response:', forecastsResponse.data);
-      
-      if (forecastsResponse.data && forecastsResponse.data.length > 0) {
-        // Find forecast for the current month
-        const currentMonthForecast = forecastsResponse.data.find(f => f.forecast_month === currentMonth);
-        if (currentMonthForecast) {
-          console.log('Found forecast for current month:', currentMonthForecast);
-          setForecastData(currentMonthForecast.predictions);
-          setShowForecastModal(true);
-        } else {
-          console.log('No forecast found for current month, using latest forecast');
-          const latestForecast = forecastsResponse.data[0];
-          console.log('Latest forecast:', latestForecast);
-          setForecastData(latestForecast.predictions);
-          setShowForecastModal(true);
-        }
-      } else {
-        // No forecast data available
-        console.log('No forecast data available');
-        setForecastError('No forecast data available for this project. Click "Generate Forecast" to create one.');
-        setShowForecastModal(true);
-      }
-    } catch (error) {
-      console.error('Failed to load forecast data:', error);
-      setForecastError('Failed to load forecast data. Please try again.');
-      setShowForecastModal(true);
-    } finally {
-      setForecastLoading(false);
-    }
+    setShowForecastModal(true);
   };
 
   const openActualValuesModal = async (project) => {
     console.log('Opening actual values modal for project:', project);
     setSelectedProject(project);
     
-    // Get month info based on project start date
-    const projectMonthInfo = getMonthInfo(project.start_date);
-    console.log('Project month info:', projectMonthInfo);
-    setCurrentProjectMonthInfo(projectMonthInfo);
+    // Load existing forecast data for this project
+    await loadProjectData(project.project_id);
     
-    // Check if there are any available months
-    if (!projectMonthInfo.pastMonths || projectMonthInfo.pastMonths.length === 0) {
-      console.log('No months available, setting error');
-      setError('No months available for this project. Project may not have started yet.');
-      setShowActualValuesModal(true);
-      return;
-    }
-    
-    // Start with current month
-    const currentMonth = projectMonthInfo.current;
-    console.log('Setting selected month to current month:', currentMonth);
-    setSelectedMonth(currentMonth);
-    
-      // Load existing data for current month and historical data
-      try {
-        await Promise.all([
-          loadMaterialActuals(project.project_id, currentMonth),
-          loadHistoricalData(project.project_id),
-          loadProjectForecasts(project.project_id)
-        ]);
-      console.log('Data loaded, showing modal');
-      setShowActualValuesModal(true);
-    } catch (error) {
-      console.error('Error loading data:', error);
-      setError('Failed to load data. Please try again.');
-      setShowActualValuesModal(true);
-    }
+    setShowActualValuesModal(true);
   };
 
   const calculateMaterialMetrics = (materialValues, forecastData) => {
@@ -784,88 +694,69 @@ const ProjectManagement = () => {
     };
   };
 
-  const loadMaterialActuals = async (projectId, month) => {
-    setLoadingActuals(true);
+  const loadProjectData = async (projectId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/material-actuals?project_id=${projectId}&month=${month}`);
-      if (response.data && response.data.length > 0) {
-        const actualData = response.data[0];
-        setMaterialActualValues(actualData.material_values || {});
-        setMonthData(actualData);
-        setIsSampleData(false);
-      } else {
-        // No actual data for this month - generate sample data based on month and project
-        console.log(`No actual data for project ${projectId}, month ${month}. Generating sample data.`);
-        
-        // Generate sample actual values based on month and project ID for dynamic display
-        const sampleValues = {};
-        const monthVariation = parseInt(month.split('-')[1]) || 10; // Extract month number
-        const projectVariation = parseInt(projectId.slice(-2)) || 1; // Extract project variation
-        
-        targetMaterials.forEach(material => {
-          // Generate different values for each month and project
-          const baseValue = 50 + (monthVariation * 5) + (projectVariation * 2);
-          const randomFactor = 0.8 + (Math.random() * 0.4); // 0.8 to 1.2
-          sampleValues[material.key] = (baseValue * randomFactor).toFixed(2);
-        });
-        
-        setMaterialActualValues(sampleValues);
-        setMonthData({
-          month: month,
-          project_id: projectId,
-          material_values: sampleValues,
-          combined_score: Object.values(sampleValues).reduce((sum, val) => sum + parseFloat(val), 0)
-        });
-        setIsSampleData(true);
-      }
-    } catch (error) {
-      console.error('Failed to load material actuals:', error);
-      setMaterialActualValues({});
-      setMonthData({});
-    } finally {
-      setLoadingActuals(false);
-    }
-  };
-
-  const saveMaterialActuals = async (projectId, month, materialValues) => {
-    setLoadingActuals(true);
-    try {
-      // Get forecast data for the current month
-      const projectForecastsData = projectForecasts[projectId] || [];
-      const currentMonthForecast = projectForecastsData.find(f => f.forecast_month === month);
-      
-      // Calculate metrics with proper forecast data
-      const metrics = calculateMaterialMetrics(materialValues, currentMonthForecast?.predictions || {});
-      
-      const payload = {
-        project_id: projectId,
-        month: month,
-        material_values: materialValues,
-        combined_score: metrics.totalActual,
-        forecast_total: metrics.totalForecast,
-        accuracy_percentage: metrics.accuracyPercentage,
-        created_at: new Date().toISOString(),
-        created_by: localStorage.getItem('username') || 'unknown'
-      };
-
-      console.log('Saving material actuals with payload:', payload);
-
-      const response = await axios.post('http://localhost:5000/api/material-actuals', payload, {
+      // Get the latest forecast for this project
+      const response = await axios.get(`http://localhost:5000/api/projects/${projectId}/forecasts`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 
-      console.log('Material actuals saved successfully:', response.data);
+      if (response.data && response.data.length > 0) {
+        // Get the most recent forecast
+        const latestForecast = response.data[0];
+        setForecastData(latestForecast.predictions);
+        
+        // Use saved actual values if they exist, otherwise use generated ones
+        if (latestForecast.actual_values && Object.keys(latestForecast.actual_values).length > 0) {
+          setMaterialActualValues(latestForecast.actual_values);
+          setIsSampleData(false); // Real saved data
+          console.log('Loaded saved actual values:', latestForecast.actual_values);
+        } else {
+          // Generate dynamic actual values if none saved
+          setMaterialActualValues(latestForecast.actual_values || {});
+          setIsSampleData(true); // Generated data
+          console.log('No saved actual values, using generated ones');
+        }
+        
+        setForecastError('');
+        console.log('Loaded latest forecast:', latestForecast);
+      } else {
+        setForecastError('No forecast data available for this project. Please generate a forecast first.');
+        setForecastData(null);
+        setMaterialActualValues({});
+      }
+    } catch (error) {
+      console.error('Failed to load project data:', error);
+      setForecastError('Failed to load forecast data');
+      setForecastData(null);
+      setMaterialActualValues({});
+    }
+  };
+
+  // No longer needed - actual values are generated dynamically
+  const saveMaterialActuals = async (projectId, materialValues) => {
+    try {
+      console.log('Saving material values for project:', projectId);
+      console.log('Material values:', materialValues);
+      
+      const response = await axios.post(
+        `http://localhost:5000/api/projects/${projectId}/actual-values`,
+        { actual_values: materialValues },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Save response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Failed to save material actuals:', error);
-      console.error('Error details:', error.response?.data);
-      console.error('Error status:', error.response?.status);
+      console.error('Failed to save actual values:', error);
       throw error;
-    } finally {
-      setLoadingActuals(false);
     }
   };
 
@@ -874,102 +765,6 @@ const ProjectManagement = () => {
       ...prev,
       [materialKey]: value
     }));
-  };
-
-  const handleMonthChange = async (month) => {
-    setSelectedMonth(month);
-    if (selectedProject) {
-      await loadMaterialActuals(selectedProject.project_id, month);
-    }
-  };
-
-  const handleForecastMonthChange = async (month) => {
-    setSelectedForecastMonth(month);
-    if (selectedProject) {
-      setForecastLoading(true);
-      setForecastError('');
-      setForecastData(null);
-
-      try {
-        // Load existing forecast data for the selected month
-        const forecastsResponse = await axios.get(`http://localhost:5000/api/projects/${selectedProject.project_id}/forecasts`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (forecastsResponse.data && forecastsResponse.data.length > 0) {
-          // Find forecast for the selected month
-          const monthForecast = forecastsResponse.data.find(forecast => forecast.forecast_month === month);
-          
-          if (monthForecast) {
-            // Show forecast data for the specific month
-            setForecastData(monthForecast.predictions);
-            setForecastError('');
-          } else {
-            // If no forecast for specific month, show the most recent available forecast
-            const latestForecast = forecastsResponse.data[0]; // Already sorted by created_at desc
-            setForecastData(latestForecast.predictions);
-            setForecastError(`No forecast data available for ${month}. Showing latest available forecast from ${latestForecast.forecast_month}.`);
-          }
-        } else {
-          setForecastError('No forecast data available for this project. Please generate a forecast from the Forecasting page first.');
-        }
-      } catch (err) {
-        setForecastError('Failed to load forecast data for this month');
-        console.error('Forecast error:', err);
-      } finally {
-        setForecastLoading(false);
-      }
-    }
-  };
-
-  const loadHistoricalData = async (projectId) => {
-    try {
-      // Load historical forecasts and actuals for available months
-      const allMonths = (currentProjectMonthInfo?.pastMonths || monthInfo.pastMonths).map(m => m.value);
-
-      const forecastPromises = allMonths.map(month => 
-        axios.get(`http://localhost:5000/api/forecasts?project_id=${projectId}&month=${month}`)
-      );
-      
-      const actualPromises = allMonths.map(month => 
-        axios.get(`http://localhost:5000/api/material-actuals?project_id=${projectId}&month=${month}`)
-      );
-
-      const [forecastResults, actualResults] = await Promise.all([
-        Promise.all(forecastPromises),
-        Promise.all(actualPromises)
-      ]);
-
-      // Process forecast data - only show real data, no sample data
-      const forecasts = {};
-      forecastResults.forEach((response, index) => {
-        const month = allMonths[index];
-        if (response.data && response.data.length > 0) {
-          forecasts[month] = response.data;
-        }
-        // Don't generate sample data - only show real data
-      });
-
-      // Process actual data - only show real data, no sample data
-      const actuals = {};
-      actualResults.forEach((response, index) => {
-        const month = allMonths[index];
-        if (response.data && response.data.length > 0) {
-          actuals[month] = response.data[0];
-        }
-        // Don't generate sample data - only show real data
-      });
-
-      setHistoricalForecasts(forecasts);
-      setHistoricalActuals(actuals);
-    } catch (error) {
-      console.error('Failed to load historical data:', error);
-      // Don't generate sample data - only show real data
-      setHistoricalForecasts({});
-      setHistoricalActuals({});
-    }
   };
 
   const openEditModal = (project) => {
@@ -1284,43 +1079,6 @@ const ProjectManagement = () => {
             </button>
           </div>
 
-            {/* Past 4 Months + Current Month Selection for Forecast */}
-            <div className="bg-gray-50 rounded-lg p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Current & Past 4 Months</h3>
-              {(currentProjectMonthInfo?.pastMonths && currentProjectMonthInfo.pastMonths.length > 0) ? (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  {(currentProjectMonthInfo?.pastMonths || monthInfo.pastMonths).map((month) => (
-                    <button
-                      key={month.value}
-                      onClick={() => handleForecastMonthChange(month.value)}
-                      className={`p-4 rounded-lg border text-center transition-all duration-200 ${
-                        selectedForecastMonth === month.value 
-                          ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
-                          : 'border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400'
-                      }`}
-                    >
-                      <div className="font-medium text-sm mb-2">{month.display}</div>
-                      <div className="text-xs text-gray-500 mb-1">
-                        {projectForecasts[selectedProject?.project_id]?.some(f => f.forecast_month === month.value) ? 'Forecast ✓' : 'No Forecast'}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {historicalActuals[month.value] ? 'Actual ✓' : 'No Actual'}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-blue-50 border border-blue-200 text-blue-800 px-6 py-4 rounded-lg">
-                  <div className="flex items-center justify-center">
-                    <svg className="w-5 h-5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="text-sm font-medium">No months available for this project</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {forecastLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-4"></div>
@@ -1395,7 +1153,7 @@ const ProjectManagement = () => {
                 </div>
                 <h4 className="font-semibold text-slate-800 text-xl mb-3">No Forecast Data</h4>
                 <p className="text-slate-600 mb-6 max-w-md mx-auto leading-relaxed">
-                  No prediction available for {selectedForecastMonth || 'this month'}. 
+                  No prediction available for this project. 
                   Generate a forecast to see material requirements and planning insights.
                 </p>
                 <div className="flex gap-4 justify-center">
@@ -1439,56 +1197,32 @@ const ProjectManagement = () => {
                 </div>
                 
             {/* Sample Data Indicator */}
-            {isSampleData && (
-              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-4">
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <p className="text-sm font-medium">
-                    Showing sample data for demonstration. Values change dynamically based on month and project selection.
-                  </p>
-                </div>
-              </div>
-            )}
-                
-            {/* Past 4 Months + Current Month Selection */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Current & Past 4 Months</h3>
-              {(currentProjectMonthInfo?.pastMonths && currentProjectMonthInfo.pastMonths.length > 0) ? (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  {(currentProjectMonthInfo?.pastMonths || monthInfo.pastMonths).map((month) => (
-                    <button
-                      key={month.value}
-                      onClick={() => handleMonthChange(month.value)}
-                      className={`p-3 rounded-lg border text-left ${
-                        selectedMonth === month.value
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-300 bg-white hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="font-medium text-sm">{month.display}</div>
-                      <div className="text-xs text-gray-500">
-                        {projectForecasts[selectedProject?.project_id]?.some(f => f.forecast_month === month.value) ? 'Forecast ✓' : 'No Forecast'}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {historicalActuals[month.value] ? 'Actual ✓' : 'No Actual'}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    <span className="text-sm font-medium">No months available for this project</span>
-                  </div>
-                </div>
-              )}
+        {isSampleData && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-4">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm font-medium">
+                Showing generated actual values. Enter your real values and click Save to persist them.
+              </p>
             </div>
-                    
+          </div>
+        )}
+        
+        {!isSampleData && Object.keys(materialActualValues).length > 0 && (
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm font-medium">
+                Showing saved actual values. You can modify them and save again.
+              </p>
+            </div>
+          </div>
+        )}
+                
             {/* Material Input Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
               {targetMaterials.map((material) => (
@@ -1512,85 +1246,25 @@ const ProjectManagement = () => {
               ))}
                     </div>
                     
-            {/* Historical Comparison */}
-            <div className="bg-green-50 rounded-lg p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Historical Forecast vs Actual Trends</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.keys(historicalActuals).map(month => {
-                  const actual = historicalActuals[month];
-                  const forecast = historicalForecasts[month];
-                  const monthDisplay = new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                  
-                  if (!actual || !forecast) return null;
-                  
-                  const accuracy = actual.accuracy_percentage || 0;
-                  const variance = actual.combined_score - actual.forecast_total;
-                  
-                  return (
-                    <div key={month} className="bg-white p-4 rounded-lg border">
-                      <div className="font-medium text-gray-900 mb-2">{monthDisplay}</div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Forecast:</span>
-                          <span className="font-semibold text-blue-600">{actual.forecast_total?.toFixed(1) || 'N/A'}</span>
-                    </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Actual:</span>
-                          <span className="font-semibold text-green-600">{actual.combined_score?.toFixed(1) || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Accuracy:</span>
-                          <span className={`font-semibold ${
-                            accuracy >= 95 ? 'text-green-600' :
-                            accuracy >= 90 ? 'text-blue-600' :
-                            accuracy >= 80 ? 'text-yellow-600' : 'text-red-600'
-                          }`}>
-                            {accuracy.toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Variance:</span>
-                          <span className={`font-semibold ${variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {variance >= 0 ? '+' : ''}{variance.toFixed(1)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {Object.keys(historicalActuals).length === 0 && (
-                <div className="text-center text-gray-500 py-8">
-                  <div className="text-lg mb-2">No Historical Data Available</div>
-                  <div className="text-sm">Enter actual values for past months to see trends</div>
-                </div>
-              )}
-                  </div>
-                  
-            {/* Current Month Analysis */}
-            {(() => {
-              // Get forecast data for the selected month
-              const projectForecastsData = projectForecasts[selectedProject?.project_id] || [];
-              const currentMonthForecast = projectForecastsData.find(f => f.forecast_month === selectedMonth);
-              const forecastData = currentMonthForecast?.predictions || {};
-              
+            {/* Current Analysis */}
+            {forecastData && materialActualValues && Object.keys(materialActualValues).length > 0 && (() => {
               const metrics = calculateMaterialMetrics(materialActualValues, forecastData);
               return (
                 <div className="bg-blue-50 rounded-lg p-6 mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Month Analysis ({selectedMonth})</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Forecast vs Actual Analysis</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white p-4 rounded-lg border">
-                      <div className="text-sm text-gray-600 mb-1">Total Actual</div>
-                      <div className="text-2xl font-bold text-green-600">{metrics.totalActual.toFixed(1)}</div>
-                      <div className="text-xs text-gray-500">units</div>
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200 shadow-sm">
+                      <div className="text-sm text-green-700 mb-1 font-medium">Total Actual</div>
+                      <div className="text-2xl font-bold text-green-800">{metrics.totalActual.toFixed(1)}</div>
+                      <div className="text-xs text-green-600">units</div>
                     </div>
-                    <div className="bg-white p-4 rounded-lg border">
-                      <div className="text-sm text-gray-600 mb-1">Total Forecast</div>
-                      <div className="text-2xl font-bold text-blue-600">{metrics.totalForecast.toFixed(1)}</div>
-                      <div className="text-xs text-gray-500">units</div>
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200 shadow-sm">
+                      <div className="text-sm text-blue-700 mb-1 font-medium">Total Forecast</div>
+                      <div className="text-2xl font-bold text-blue-800">{metrics.totalForecast.toFixed(1)}</div>
+                      <div className="text-xs text-blue-600">units</div>
                     </div>
-                    <div className="bg-white p-4 rounded-lg border">
-                      <div className="text-sm text-gray-600 mb-1">Accuracy</div>
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200 shadow-sm">
+                      <div className="text-sm text-purple-700 mb-1 font-medium">Accuracy</div>
                       <div className={`text-2xl font-bold ${
                         metrics.accuracyPercentage >= 95 ? 'text-green-600' :
                         metrics.accuracyPercentage >= 90 ? 'text-blue-600' :
@@ -1598,16 +1272,16 @@ const ProjectManagement = () => {
                       }`}>
                         {metrics.accuracyPercentage}%
                       </div>
-                      <div className="text-xs text-gray-500">{metrics.status}</div>
+                      <div className="text-xs text-purple-600">{metrics.status}</div>
                     </div>
-                    <div className="bg-white p-4 rounded-lg border">
-                      <div className="text-sm text-gray-600 mb-1">Variance</div>
+                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200 shadow-sm">
+                      <div className="text-sm text-orange-700 mb-1 font-medium">Variance</div>
                       <div className={`text-2xl font-bold ${
                         metrics.variance >= 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {metrics.variance >= 0 ? '+' : ''}{metrics.variance.toFixed(1)}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-orange-600">
                         {metrics.variancePercentage >= 0 ? '+' : ''}{metrics.variancePercentage}%
                       </div>
                     </div>
@@ -1646,8 +1320,13 @@ const ProjectManagement = () => {
                     <button
                 onClick={async () => {
                   try {
-                    await saveMaterialActuals(selectedProject.project_id, selectedMonth, materialActualValues);
+                    await saveMaterialActuals(selectedProject.project_id, materialActualValues);
                     alert('Material values saved successfully!');
+                    
+                    // Trigger dashboard refresh
+                    window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+                    console.log('Triggered dashboard refresh after saving actual values');
+                    
                     setShowActualValuesModal(false);
                   } catch (error) {
                     console.error('Save error:', error);
