@@ -383,12 +383,12 @@ const Dashboard = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Forecast vs Actual Trends</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Actual vs Forecasted Demands</h3>
                 {trendData.length > 0 && (
                   <div className="flex items-center mt-1">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                     <span className="text-xs text-gray-600">
-                      Showing averaged data from {trendData.reduce((sum, item) => sum + (item.forecast_count || 0), 0)} total forecasts
+                      Showing material demand trends over time
                       {refreshing && <span className="ml-2 text-blue-600">• Refreshing...</span>}
                     </span>
                   </div>
@@ -441,10 +441,8 @@ const Dashboard = () => {
                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }}
                     formatter={(value, name, props) => {
-                      const data = props.payload;
-                      const count = name === 'forecast' ? data.forecast_count : data.actual_count;
                       return [
-                        `${value.toFixed(1)} tons (avg of ${count} projects)`,
+                        `${value.toFixed(1)} tons`,
                         name === 'forecast' ? 'Forecasted' : 'Actual'
                       ];
                     }}

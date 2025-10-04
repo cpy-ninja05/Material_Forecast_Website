@@ -1140,8 +1140,8 @@ const ProjectManagement = () => {
                     <div className="text-xs text-gray-500">
                       {material.includes('tons') ? 'Tons' : 
                        material.includes('count') ? 'Units' : 'Units'}
-                          </div>
-                        </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -1188,27 +1188,27 @@ const ProjectManagement = () => {
               <h2 className="text-xl font-semibold text-gray-900">
                 Material Actual Values - {selectedProject.name}
               </h2>
-                  <button
+              <button
                 onClick={() => setShowActualValuesModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
+                className="text-gray-400 hover:text-gray-600"
+              >
                 ✕
-                  </button>
-                </div>
-                
-            {/* Sample Data Indicator */}
-        {isSampleData && (
-          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-4">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm font-medium">
-                Showing generated actual values. Enter your real values and click Save to persist them.
-              </p>
+              </button>
             </div>
-          </div>
-        )}
+                
+                {/* Sample Data Indicator */}
+                {isSampleData && (
+                  <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-4">
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm font-medium">
+                        Showing generated actual values. Enter your real values and click Save to persist them.
+                      </p>
+                    </div>
+                  </div>
+                )}
         
         {!isSampleData && Object.keys(materialActualValues).length > 0 && (
           <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4">

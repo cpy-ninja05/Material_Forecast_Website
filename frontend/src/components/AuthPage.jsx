@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, LogIn, UserPlus, Building2, BarChart3, Calendar, FileText, IndianRupee, Shield } from 'lucide-react';
 
 const Login = ({ onSwitchToRegister }) => {
   const [formData, setFormData] = useState({
@@ -38,95 +38,145 @@ const Login = ({ onSwitchToRegister }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-md w-full space-y-8 p-8">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <LogIn className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            POWERGRID Login
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to access material forecasting
-          </p>
+    <div className="h-screen flex">
+      {/* Left Panel - Blue Gradient */}
+      <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 relative overflow-hidden">
+        {/* Decorative Elements */}
+        <div className="absolute top-0 left-0 w-32 h-32 bg-blue-400 rounded-full -translate-x-16 -translate-y-16 opacity-20"></div>
+        <div className="absolute top-8 left-8 grid grid-cols-4 gap-2 opacity-30">
+          {[...Array(16)].map((_, i) => (
+            <div key={i} className="w-2 h-2 bg-blue-200 rounded-full"></div>
+          ))}
         </div>
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                value={formData.username}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter your username"
-              />
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-center px-12 text-white">
+          <h1 className="text-4xl font-bold mb-8">Material Forecast Portal</h1>
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="h-6 w-6" />
+              <span className="text-lg">Material Demand Forecasting</span>
             </div>
-            
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1 relative">
+            <div className="flex items-center space-x-3">
+              <Calendar className="h-6 w-6" />
+              <span className="text-lg">Project Management</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <FileText className="h-6 w-6" />
+              <span className="text-lg">Purchase Request System</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Shield className="h-6 w-6" />
+              <span className="text-lg">Inventory Tracking</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <IndianRupee className="h-6 w-6" />
+              <span className="text-lg">Project Analytics</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel - Login Form */}
+      <div className="flex-1 lg:w-3/5 bg-gray-50 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-8">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-blue-600">PLANGRID</span>
+          </div>
+          <button
+            onClick={onSwitchToRegister}
+            className="px-4 py-2 text-sm font-medium text-blue-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            REGISTER
+          </button>
+        </div>
+
+        {/* Login Form */}
+        <div className="flex-1 flex items-center justify-center px-8 pb-8">
+          <div className="w-full max-w-md">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">Login</h2>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Username Field */}
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                  Username
+                </label>
                 <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  id="username"
+                  name="username"
+                  type="text"
                   required
-                  value={formData.password}
+                  value={formData.username}
                   onChange={handleChange}
-                  className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Enter your password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter your username"
                 />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
-                  )}
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="******"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Options */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center">
+                  <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  <span className="ml-2 text-sm text-gray-700">Save User</span>
+                </label>
+                <button type="button" className="text-sm text-blue-600 hover:text-blue-500">
+                  Forgot Password?
                 </button>
               </div>
-            </div>
-          </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
-              {error}
-            </div>
-          )}
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
+              {/* Login Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Signing in...' : 'LOGIN'}
+              </button>
+            </form>
           </div>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={onSwitchToRegister}
-              className="text-indigo-600 hover:text-indigo-500 text-sm font-medium flex items-center justify-center mx-auto"
-            >
-              <UserPlus className="h-4 w-4 mr-1" />
-              Don't have an account? Register
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -180,133 +230,183 @@ const Register = ({ onSwitchToLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-md w-full space-y-8 p-8">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <UserPlus className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Create Account
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Join POWERGRID forecasting system
-          </p>
+    <div className="h-screen flex">
+      {/* Left Panel - Blue Gradient */}
+      <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 relative overflow-hidden">
+        {/* Decorative Elements */}
+        <div className="absolute top-0 left-0 w-32 h-32 bg-blue-400 rounded-full -translate-x-16 -translate-y-16 opacity-20"></div>
+        <div className="absolute top-8 left-8 grid grid-cols-4 gap-2 opacity-30">
+          {[...Array(16)].map((_, i) => (
+            <div key={i} className="w-2 h-2 bg-blue-200 rounded-full"></div>
+          ))}
         </div>
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                value={formData.username}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Choose a username"
-              />
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-center px-12 text-white">
+          <h1 className="text-4xl font-bold mb-8">Join PLANGRID</h1>
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="h-6 w-6" />
+              <span className="text-lg">Material Demand Forecasting</span>
             </div>
-            
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter your email"
-              />
+            <div className="flex items-center space-x-3">
+              <Calendar className="h-6 w-6" />
+              <span className="text-lg">Project Management</span>
             </div>
-            
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1 relative">
+            <div className="flex items-center space-x-3">
+              <FileText className="h-6 w-6" />
+              <span className="text-lg">Purchase Request System</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Shield className="h-6 w-6" />
+              <span className="text-lg">Inventory Tracking</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <IndianRupee className="h-6 w-6" />
+              <span className="text-lg">Project Analytics</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel - Register Form */}
+      <div className="flex-1 lg:w-3/5 bg-gray-50 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-8">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-blue-600">PLANGRID</span>
+          </div>
+          <button
+            onClick={onSwitchToLogin}
+            className="px-4 py-2 text-sm font-medium text-blue-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            LOGIN
+          </button>
+        </div>
+
+        {/* Register Form */}
+        <div className="flex-1 flex items-center justify-center px-8 pb-8">
+          <div className="w-full max-w-md">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">Create Account</h2>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Username Field */}
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                  Username
+                </label>
                 <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  id="username"
+                  name="username"
+                  type="text"
                   required
-                  value={formData.password}
+                  value={formData.username}
                   onChange={handleChange}
-                  className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Create a password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Choose a username"
                 />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
-                  )}
-                </button>
               </div>
-            </div>
-            
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Confirm your password"
-              />
-            </div>
+
+              {/* Email Field */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter your email"
+                />
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Create a password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password Field */}
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Confirm your password"
+                />
+              </div>
+
+              {/* Terms and Conditions */}
+              <div className="flex items-start">
+                <input type="checkbox" className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="ml-2 text-sm text-gray-700">
+                  I agree to the <a href="#" className="text-blue-600 hover:text-blue-500">Terms and Conditions</a>
+                </span>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
+
+              {/* Success Message */}
+              {success && (
+                <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg">
+                  {success}
+                </div>
+              )}
+
+              {/* Register Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Creating account...' : 'CREATE ACCOUNT'}
+              </button>
+            </form>
           </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-md">
-              {success}
-            </div>
-          )}
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {loading ? 'Creating account...' : 'Create account'}
-            </button>
-          </div>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={onSwitchToLogin}
-              className="text-indigo-600 hover:text-indigo-500 text-sm font-medium flex items-center justify-center mx-auto"
-            >
-              <LogIn className="h-4 w-4 mr-1" />
-              Already have an account? Login
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );

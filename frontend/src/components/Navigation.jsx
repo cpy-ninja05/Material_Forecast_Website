@@ -25,7 +25,7 @@ const Navigation = () => {
             <Zap className="h-5 w-5 text-white" />
           </div>
           <div>
-            <div className="text-lg font-bold text-white">POWERGRID</div>
+            <div className="text-lg font-bold text-white">PLANGRID</div>
             <div className="text-xs text-gray-300">MATERIALS PLATFORM</div>
           </div>
         </div>

@@ -1,6 +1,6 @@
-# POWERGRID Material Demand Forecasting Dashboard
+# PLANGRID Material Demand Forecasting Dashboard
 
-A modern, professional, and interactive frontend UI for a Material Demand Forecasting Dashboard built with Vite + React + JavaScript and TailwindCSS. The dashboard focuses on visualizing project-wise and material-wise demand predictions for POWERGRID projects across India.
+A modern, professional, and interactive frontend UI for a Material Demand Forecasting Dashboard built with Vite + React + JavaScript and TailwindCSS. The dashboard focuses on visualizing project-wise and material-wise demand predictions for PLANGRID projects across India.
 
 ## 🚀 Features
 
@@ -300,7 +300,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🙏 Acknowledgments
 
-- **POWERGRID Corporation** for the project requirements
+- **PLANGRID Corporation** for the project requirements
 - **React community** for excellent documentation
 - **TailwindCSS** for the utility-first CSS framework
 - **ApexCharts** for beautiful charting capabilities
@@ -308,5 +308,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Built with ❤️ for POWERGRID Material Demand Forecasting**
+**Built with ❤️ for PLANGRID Material Demand Forecasting**
 

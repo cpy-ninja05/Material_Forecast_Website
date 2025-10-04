@@ -550,16 +550,16 @@ const MapView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="px-8 py-8">
+      <div className="bg-white shadow-sm border-b border-gray-200 flex-shrink-0">
+        <div className="px-8 py-6">
           <h1 className="text-3xl font-bold text-gray-900">Project Map</h1>
-          <p className="text-gray-600 mt-2">Interactive map showing all POWERGRID projects across India.</p>
+          <p className="text-gray-600 mt-2">Interactive map showing all PLANGRID projects across India.</p>
         </div>
       </div>
 
-      <div className="p-8 space-y-8">
+      <div className="flex-1 p-8 space-y-6 overflow-hidden">
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -631,11 +631,11 @@ const MapView = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 min-h-0">
           {/* Map */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="h-[600px]">
+          <div className="lg:col-span-3 flex flex-col min-h-0">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
+              <div className="flex-1 min-h-[400px] lg:min-h-0">
                 <MapContainer
                   center={mapCenter}
                   zoom={mapZoom}
@@ -700,7 +700,7 @@ const MapView = () => {
           </div>
 
           {/* Right Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 flex flex-col space-y-6 overflow-y-auto">
             {/* Project Statistics */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Project Statistics</h3>
