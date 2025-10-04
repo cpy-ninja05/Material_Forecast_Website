@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, ShoppingCart, Plus, Download, FileSpreadsheet, FileText as FileTextIcon, RefreshCw, Filter, X, Calendar, Eye, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { FileText, ShoppingCart, Plus, Download, FileSpreadsheet, FileText as FileTextIcon, RefreshCw, Filter, X, Calendar, Eye, CheckCircle, Clock, AlertCircle, Star } from 'lucide-react';
 
 const PurchaseRequests = () => {
   const [items, setItems] = useState([]);
@@ -21,6 +21,16 @@ const PurchaseRequests = () => {
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [projectFilter, setProjectFilter] = useState('All Projects');
   const [availableProjects, setAvailableProjects] = useState([]);
+  const [availableMaterials, setAvailableMaterials] = useState([]);
+  const [availableDealers, setAvailableDealers] = useState([]);
+  const [showAddDealerModal, setShowAddDealerModal] = useState(false);
+  const [newDealerForm, setNewDealerForm] = useState({
+    name: '',
+    contact: '',
+    email: '',
+    phone: '',
+    address: ''
+  });
 
   // Order view and management states
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -71,8 +81,118 @@ const PurchaseRequests = () => {
     }
   };
 
+  const loadMaterials = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:5000/api/materials', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const materials = await response.json();
+        setAvailableMaterials(materials);
+      }
+    } catch (err) {
+      console.error('Error loading materials:', err);
+    }
+  };
+
+  const loadProjects = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:5000/api/projects', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const projects = await response.json();
+        setAvailableProjects(projects.map(p => p.name));
+      }
+    } catch (err) {
+      console.error('Error loading projects:', err);
+    }
+  };
+
+  const loadDealers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:5000/api/dealers', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const dealers = await response.json();
+        setAvailableDealers(dealers);
+      } else {
+        // Fallback to sample dealers if API fails
+        setAvailableDealers(sampleDealers);
+      }
+    } catch (err) {
+      console.error('Error loading dealers:', err);
+      // Fallback to sample dealers
+      setAvailableDealers(sampleDealers);
+    }
+  };
+
+  const handleAddDealer = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please login to add dealer');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/dealers', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newDealerForm)
+      });
+
+      if (response.ok) {
+        const newDealer = await response.json();
+        setAvailableDealers(prev => [...prev, newDealer]);
+        setShowAddDealerModal(false);
+        setNewDealerForm({
+          name: '',
+          contact: '',
+          email: '',
+          phone: '',
+          address: ''
+        });
+        alert('Dealer added successfully!');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add dealer');
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('Error adding dealer:', err);
+    }
+  };
+
   useEffect(() => {
     loadOrders();
+    loadMaterials();
+    loadProjects();
+    loadDealers();
   }, []);
 
   // Filter orders based on search term, status, and project
@@ -492,7 +612,7 @@ const PurchaseRequests = () => {
           })() : ''}
           onClick={() => setIsOpen(!isOpen)}
           readOnly
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 cursor-pointer"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
           placeholder="Select delivery date"
           required={required}
         />
@@ -536,7 +656,7 @@ const PurchaseRequests = () => {
                         e.stopPropagation();
                         setCurrentMonth(today);
                       }}
-                      className="text-xs text-purple-600 hover:text-purple-800 mt-1"
+                      className="text-xs text-blue-600 hover:text-blue-800 mt-1"
                     >
                       Today
                     </button>
@@ -584,8 +704,8 @@ const PurchaseRequests = () => {
                       disabled={isDisabled}
                       className={`p-1 text-center text-sm rounded hover:bg-purple-100 ${
                         isDisabled ? 'text-gray-300 cursor-not-allowed' :
-                        isSelected ? 'bg-purple-600 text-white' :
-                        'text-gray-700 hover:text-purple-700'
+                        isSelected ? 'bg-blue-600 text-white' :
+                        'text-gray-700 hover:text-blue-700'
                       }`}
                     >
                       {day}
@@ -680,7 +800,7 @@ const PurchaseRequests = () => {
             
             <button 
               onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               Create Order
@@ -728,7 +848,7 @@ const PurchaseRequests = () => {
                 {items.length === 0 && (
                 <button 
                   onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   Create Order
                 </button>
@@ -803,7 +923,7 @@ const PurchaseRequests = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button 
                               onClick={() => handleViewOrder(order)}
-                              className="text-purple-600 hover:text-purple-900 flex items-center gap-1"
+                              className="text-blue-600 hover:text-purple-900 flex items-center gap-1"
                             >
                               <Eye className="h-4 w-4" />
                               View
@@ -852,7 +972,7 @@ const PurchaseRequests = () => {
                         setStatusFilter('All Status');
                         setProjectFilter('All Projects');
                       }}
-                      className="w-full text-xs text-purple-600 hover:text-purple-800 font-medium"
+                      className="w-full text-xs text-blue-600 hover:text-blue-800 font-medium"
                     >
                       Clear All Filters
                     </button>
@@ -863,15 +983,40 @@ const PurchaseRequests = () => {
 
             {/* Top Dealers */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Dealers</h3>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Top Dealers</h3>
+                <button
+                  onClick={() => setShowAddDealerModal(true)}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add New Dealer
+                </button>
+              </div>
               <div className="space-y-4">
-                {sampleDealers.map((dealer, index) => (
+                {availableDealers.map((dealer, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div>
                       <div className="font-medium text-gray-900">{dealer.name}</div>
                       <div className="text-sm text-gray-600">{dealer.contact}</div>
                     </div>
-                    <div className="text-sm font-semibold text-gray-900">{dealer.rating}</div>
+                    <div className="flex items-center gap-1">
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-4 w-4 ${
+                              star <= Math.floor(dealer.rating || 4.0)
+                                ? 'text-yellow-400 fill-current'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 ml-1">
+                        {dealer.rating || 4.0}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -902,13 +1047,13 @@ const PurchaseRequests = () => {
                 <select
                   value={orderForm.project}
                   onChange={(e) => setOrderForm({...orderForm, project: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
                   <option value="">Select Project</option>
-                  <option value="Mumbai-Pune Transmission Line">Mumbai-Pune Transmission Line</option>
-                  <option value="Delhi Grid Substation">Delhi Grid Substation</option>
-                  <option value="Bangalore Ring Road Transmission">Bangalore Ring Road Transmission</option>
+                  {availableProjects.map((project, index) => (
+                    <option key={index} value={project}>{project}</option>
+                  ))}
                 </select>
               </div>
 
@@ -919,20 +1064,13 @@ const PurchaseRequests = () => {
                 <select
                   value={orderForm.material}
                   onChange={(e) => setOrderForm({...orderForm, material: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
                   <option value="">Select Material</option>
-                  <option value="Steel Tower">Steel Tower</option>
-                  <option value="Conductor Cable">Conductor Cable</option>
-                  <option value="Insulator">Insulator</option>
-                  <option value="Power Transformer">Power Transformer</option>
-                  <option value="Switchgear">Switchgear</option>
-                  <option value="Circuit Breaker">Circuit Breaker</option>
-                  <option value="Cable Tray">Cable Tray</option>
-                  <option value="Lightning Arrester">Lightning Arrester</option>
-                  <option value="Surge Arrester">Surge Arrester</option>
-                  <option value="Busbar">Busbar</option>
+                  {availableMaterials.map((material, index) => (
+                    <option key={index} value={material.name}>{material.name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -943,11 +1081,11 @@ const PurchaseRequests = () => {
                 <select
                   value={orderForm.dealer}
                   onChange={(e) => setOrderForm({...orderForm, dealer: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
                   <option value="">Select Dealer</option>
-                  {sampleDealers.map((dealer, index) => (
+                  {availableDealers.map((dealer, index) => (
                     <option key={index} value={dealer.name}>{dealer.name}</option>
                   ))}
                 </select>
@@ -961,7 +1099,7 @@ const PurchaseRequests = () => {
                   type="number"
                   value={orderForm.quantity}
                   onChange={(e) => setOrderForm({...orderForm, quantity: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter quantity"
                   required
                 />
@@ -1023,7 +1161,7 @@ const PurchaseRequests = () => {
                 <button
                   type="submit"
                   disabled={creating}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
                   {creating ? 'Creating...' : 'Create Order'}
                 </button>
@@ -1112,7 +1250,7 @@ const PurchaseRequests = () => {
                       disabled={updatingStatus || selectedOrder.status === status}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         selectedOrder.status === status
-                          ? 'bg-purple-600 text-white'
+                          ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       } ${updatingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
@@ -1212,6 +1350,103 @@ Status: ${selectedOrder.status}`;
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Dealer Modal */}
+      {showAddDealerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Add New Dealer</h3>
+              <button
+                onClick={() => setShowAddDealerModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleAddDealer(); }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Dealer Name *
+                </label>
+                <input
+                  type="text"
+                  value={newDealerForm.name}
+                  onChange={(e) => setNewDealerForm({...newDealerForm, name: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Contact Person *
+                </label>
+                <input
+                  type="text"
+                  value={newDealerForm.contact}
+                  onChange={(e) => setNewDealerForm({...newDealerForm, contact: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={newDealerForm.email}
+                  onChange={(e) => setNewDealerForm({...newDealerForm, email: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={newDealerForm.phone}
+                  onChange={(e) => setNewDealerForm({...newDealerForm, phone: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Address
+                </label>
+                <textarea
+                  value={newDealerForm.address}
+                  onChange={(e) => setNewDealerForm({...newDealerForm, address: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowAddDealerModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Add Dealer
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

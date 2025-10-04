@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Filter, RefreshCw, BarChart3, Package, AlertTriangle, Truck, Warehouse, TrendingUp, Edit, Save, X, Plus, Eye } from 'lucide-react';
+import { Filter, RefreshCw, Package, AlertTriangle, Truck, Warehouse, TrendingUp, Edit, Save, X, Plus, Eye } from 'lucide-react';
 
 const Inventory = () => {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState('grid');
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -437,22 +436,6 @@ const Inventory = () => {
             </select>
             
             <div className="ml-auto flex gap-2">
-              <button 
-                onClick={() => setViewMode('grid')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Grid View
-              </button>
-              <button 
-                onClick={() => setViewMode('analytics')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  viewMode === 'analytics' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Analytics
-              </button>
               <button 
                 onClick={loadInventory}
                 disabled={loading}
