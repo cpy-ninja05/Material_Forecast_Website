@@ -42,7 +42,7 @@
 
 3. **Verify Setup**
    - Backend will run on: `http://localhost:5000`
-   - MongoDB connection: `mongodb://localhost:27017/POWERGRID_DATA/material_forecast`
+   - MongoDB connection: `mongodb://localhost:27017/PLANGRID_DATA/material_forecast`
    - Sample data will be automatically created on first run
 
 ## 📊 API Endpoints
@@ -143,7 +143,7 @@ NODE_ENV=development
 ```
 
 ### MongoDB Connection
-The app connects to MongoDB at `mongodb://localhost:27017/POWERGRID_DATA/material_forecast` by default.
+The app connects to MongoDB at `mongodb://localhost:27017/PLANGRID_DATA/material_forecast` by default.
 
 ## 📈 Sample Data
 
