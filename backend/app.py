@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient, errors
 
 app = Flask(__name__)
@@ -17,22 +17,34 @@ CORS(app)
 
 # Initialize MongoDB
 def init_db():
-    mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
+    mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/POWERGRID_DATA')
     db_name = os.getenv('MONGO_DB', 'material_forecast')
 
     client = MongoClient(mongo_uri)
     db = client[db_name]
 
     users_collection = db['users']
+    projects_collection = db['projects']
+    forecasts_collection = db['forecasts']
+    inventory_collection = db['inventory']
+    orders_collection = db['orders']
+    material_actuals_collection = db['material_actuals']
 
     # Ensure unique indexes for username and email
     try:
         users_collection.create_index('username', unique=True)
         users_collection.create_index('email', unique=True)
+        # Only create project_id index if collection is empty or doesn't have null values
+        if projects_collection.count_documents({'project_id': None}) == 0:
+            projects_collection.create_index('project_id', unique=True)
+        forecasts_collection.create_index([('project_id', 1), ('material', 1), ('created_at', 1)])
+        inventory_collection.create_index([('material_code', 1), ('warehouse', 1)], unique=True)
+        orders_collection.create_index('order_id', unique=True)
+        material_actuals_collection.create_index([('project_id', 1), ('month', 1)], unique=True)
     except errors.PyMongoError as e:
         print(f"Error creating indexes: {e}")
 
-    return client, db, users_collection
+    return client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection
 
 # Load models and encoders
 def load_models():
@@ -56,7 +68,7 @@ def load_data():
         return None
 
 # Initialize
-client, db, users_collection = init_db()
+client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection = init_db()
 model, feature_cols, target_cols, label_encoders = load_models()
 df = load_data()
 
@@ -95,7 +107,7 @@ def register():
             'email': email,
             'password_hash': password_hash,
             'role': 'user',
-            'created_at': datetime.utcnow()
+            'created_at': datetime.now(timezone.utc)
         })
     except errors.DuplicateKeyError:
         return jsonify({'error': 'User already exists'}), 400
@@ -203,7 +215,7 @@ def projects_analytics():
 def dispatch_data():
     try:
         # Generate simple synthetic dispatch data for the last 24 hours, 1-hour interval
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         points = []
         for i in range(24, -1, -1):
             ts = now - timedelta(hours=i)
@@ -238,21 +250,48 @@ def forecast():
         else:
             # Use default values for missing fields
             if col == 'budget':
-                input_data[col] = 30000000
+                input_data[col] = 30000000.0
             elif col == 'tax_rate':
-                input_data[col] = 18
+                input_data[col] = 18.0
             elif col == 'project_size_km':
-                input_data[col] = 100
+                input_data[col] = 100.0
             elif col == 'project_start_month':
-                input_data[col] = 1
+                input_data[col] = 1.0
             elif col == 'project_end_month':
-                input_data[col] = 12
+                input_data[col] = 12.0
             elif col == 'lead_time_days':
-                input_data[col] = 45
+                input_data[col] = 45.0
             elif col == 'commodity_price_index':
-                input_data[col] = 105
+                input_data[col] = 105.0
             else:
-                input_data[col] = 0
+                input_data[col] = 0.0
+    
+    # Convert numeric fields to proper types
+    numeric_fields = ['budget', 'tax_rate', 'project_size_km', 'project_start_month', 
+                     'project_end_month', 'lead_time_days', 'commodity_price_index']
+    
+    for field in numeric_fields:
+        if field in input_data:
+            try:
+                input_data[field] = float(input_data[field])
+            except (ValueError, TypeError):
+                # Use default values if conversion fails
+                if field == 'budget':
+                    input_data[field] = 30000000.0
+                elif field == 'tax_rate':
+                    input_data[field] = 18.0
+                elif field == 'project_size_km':
+                    input_data[field] = 100.0
+                elif field == 'project_start_month':
+                    input_data[field] = 1.0
+                elif field == 'project_end_month':
+                    input_data[field] = 12.0
+                elif field == 'lead_time_days':
+                    input_data[field] = 45.0
+                elif field == 'commodity_price_index':
+                    input_data[field] = 105.0
+                else:
+                    input_data[field] = 0.0
     
     # Encode categorical variables
     for col in ['project_location', 'tower_type', 'substation_type', 'region_risk_flag']:
@@ -265,6 +304,11 @@ def forecast():
     # Create DataFrame
     input_df = pd.DataFrame([input_data])
     
+    # Debug: Print data types
+    print("Input data types:")
+    for col in input_df.columns:
+        print(f"{col}: {input_df[col].dtype}")
+    
     # Make prediction
     try:
         predictions = model.predict(input_df[feature_cols])
@@ -274,12 +318,452 @@ def forecast():
         for i, col in enumerate(target_cols):
             results[col] = float(predictions[0][i])
         
+        # Save forecast to database
+        try:
+            forecast_month = data.get('forecast_month', datetime.now(timezone.utc).strftime('%Y-%m'))
+            project_id = data.get('project_id', 'unknown')
+            
+            # Check if forecast already exists for this project and month
+            existing_forecast = forecasts_collection.find_one({
+                'project_id': project_id,
+                'forecast_month': forecast_month
+            })
+            
+            if existing_forecast:
+                return jsonify({
+                    'error': f'Forecast already exists for {forecast_month}. Cannot create duplicate forecast for the same month.',
+                    'existing_forecast': {
+                        'forecast_month': existing_forecast['forecast_month'],
+                        'created_at': existing_forecast['created_at'].isoformat() if 'created_at' in existing_forecast else None
+                    }
+                }), 400
+            
+            forecast_data = {
+                'project_id': project_id,
+                'forecast_month': forecast_month,
+                'input_data': input_data,
+                'predictions': results,
+                'created_at': datetime.now(timezone.utc),
+                'created_by': get_jwt_identity()
+            }
+            forecasts_collection.insert_one(forecast_data)
+            print(f"Forecast saved for project {project_id}, month {forecast_month}")
+        except Exception as e:
+            print(f"Failed to save forecast: {e}")
+            return jsonify({'error': f'Failed to save forecast: {str(e)}'}), 500
+        
         return jsonify({
             'predictions': results,
             'input_used': input_data
         })
     except Exception as e:
         return jsonify({'error': f'Prediction failed: {str(e)}'}), 500
+
+# Projects API
+@app.route('/api/projects/<project_id>/forecasts', methods=['GET'])
+@jwt_required()
+def get_project_forecasts(project_id):
+    try:
+        forecasts = list(forecasts_collection.find(
+            {'project_id': project_id}, 
+            {'_id': 0}
+        ).sort('created_at', -1))
+        return jsonify(forecasts)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/projects', methods=['GET'])
+@jwt_required()
+def get_projects():
+    try:
+        projects = list(projects_collection.find({}, {'_id': 0}))
+        # Convert ObjectId to string for any remaining _id fields
+        for project in projects:
+            if '_id' in project:
+                project['_id'] = str(project['_id'])
+        return jsonify(projects)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/projects', methods=['POST'])
+@jwt_required()
+def create_project():
+    data = request.get_json()
+    username = get_jwt_identity()
+    
+    try:
+        project_data = {
+            'project_id': data.get('project_id', f'PROJ_{datetime.now().strftime("%Y%m%d%H%M%S")}'),
+            'name': data.get('name'),
+            'location': data.get('location'),
+            'status': data.get('status', 'PLANNED'),
+            'tower_type': data.get('tower_type'),
+            'substation_type': data.get('substation_type'),
+            'cost': data.get('cost'),
+            'start_date': data.get('start_date'),
+            'end_date': data.get('end_date'),
+            'project_size_km': data.get('project_size_km'),
+            'description': data.get('description'),
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        }
+        
+        result = projects_collection.insert_one(project_data)
+        project_data['_id'] = str(result.inserted_id)
+        return jsonify(project_data), 201
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/projects/<project_id>', methods=['PUT'])
+@jwt_required()
+def update_project(project_id):
+    data = request.get_json()
+    username = get_jwt_identity()
+    
+    try:
+        update_data = {
+            'name': data.get('name'),
+            'location': data.get('location'),
+            'status': data.get('status'),
+            'tower_type': data.get('tower_type'),
+            'substation_type': data.get('substation_type'),
+            'cost': data.get('cost'),
+            'start_date': data.get('start_date'),
+            'end_date': data.get('end_date'),
+            'project_size_km': data.get('project_size_km'),
+            'description': data.get('description'),
+            'updated_by': username,
+            'updated_at': datetime.now(timezone.utc)
+        }
+        
+        # Remove None values
+        update_data = {k: v for k, v in update_data.items() if v is not None}
+        
+        result = projects_collection.update_one(
+            {'project_id': project_id},
+            {'$set': update_data}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify({'error': 'Project not found'}), 404
+            
+        return jsonify({'message': 'Project updated successfully'}), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/projects/<project_id>', methods=['DELETE'])
+@jwt_required()
+def delete_project(project_id):
+    try:
+        result = projects_collection.delete_one({'project_id': project_id})
+        
+        if result.deleted_count == 0:
+            return jsonify({'error': 'Project not found'}), 404
+            
+        return jsonify({'message': 'Project deleted successfully'}), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+# Forecasts API
+@app.route('/api/forecasts', methods=['GET'])
+@jwt_required()
+def get_forecasts():
+    try:
+        forecasts = list(forecasts_collection.find({}, {'_id': 0}).sort('created_at', -1))
+        return jsonify(forecasts)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/dashboard/metrics', methods=['GET'])
+@jwt_required()
+def get_dashboard_metrics():
+    try:
+        # Get total projects count
+        total_projects = projects_collection.count_documents({})
+        
+        # Get active projects count (status = 'IN PROGRESS')
+        active_projects = projects_collection.count_documents({'status': 'IN PROGRESS'})
+        
+        # Calculate forecast accuracy from material actuals
+        accuracy_data = list(material_actuals_collection.find({}, {'accuracy_percentage': 1}))
+        if accuracy_data:
+            avg_accuracy = sum(item.get('accuracy_percentage', 0) for item in accuracy_data) / len(accuracy_data)
+            forecast_accuracy = round(avg_accuracy, 1)
+        else:
+            forecast_accuracy = 0.0
+        
+        # Get pending orders count (placeholder - you can implement orders collection later)
+        pending_orders = 0  # orders_collection.count_documents({'status': 'PENDING'})
+        
+        # Get total orders count (placeholder - you can implement orders collection later)
+        total_orders = 0  # orders_collection.count_documents({})
+        
+        # Calculate projects added this month
+        current_month = datetime.now(timezone.utc).strftime('%Y-%m')
+        projects_this_month = projects_collection.count_documents({
+            'created_at': {
+                '$gte': datetime.strptime(f'{current_month}-01', '%Y-%m-%d').replace(tzinfo=timezone.utc)
+            }
+        })
+        
+        metrics = {
+            'total_projects': total_projects,
+            'active_projects': active_projects,
+            'forecast_accuracy': forecast_accuracy,
+            'pending_orders': pending_orders,
+            'total_orders': total_orders,
+            'projects_this_month': projects_this_month,
+            'current_month': current_month
+        }
+        
+        return jsonify(metrics)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch dashboard metrics: {str(e)}'}), 500
+
+@app.route('/api/dashboard/trends', methods=['GET'])
+@jwt_required()
+def get_dashboard_trends():
+    try:
+        # Get all forecasts from the last 6 months
+        six_months_ago = datetime.now(timezone.utc) - timedelta(days=180)
+        
+        forecasts = list(forecasts_collection.find({
+            'created_at': {'$gte': six_months_ago}
+        }).sort('forecast_month', 1))
+        
+        # Get all actual values from the last 6 months
+        actuals = list(material_actuals_collection.find({
+            'created_at': {'$gte': six_months_ago}
+        }).sort('month', 1))
+        
+        print(f"Dashboard trends debug - Found {len(forecasts)} forecasts and {len(actuals)} actual values")
+        for actual in actuals:
+            print(f"Actual data: month={actual.get('month')}, combined_score={actual.get('combined_score')}")
+        
+        # Aggregate data by month
+        monthly_data = {}
+        
+        # Process forecasts
+        for forecast in forecasts:
+            month = forecast['forecast_month']
+            if month not in monthly_data:
+                monthly_data[month] = {'forecast': 0, 'actual': 0, 'month_name': month}
+            
+            # Calculate total forecast quantity
+            total_forecast = sum(forecast['predictions'].values())
+            monthly_data[month]['forecast'] = total_forecast
+        
+        # Process actual values
+        for actual in actuals:
+            month = actual['month']
+            if month not in monthly_data:
+                monthly_data[month] = {'forecast': 0, 'actual': 0, 'month_name': month}
+            
+            monthly_data[month]['actual'] = actual.get('combined_score', 0)
+        
+        # Convert to array and format for chart
+        trend_data = []
+        for month_key, data in sorted(monthly_data.items()):
+            # Convert YYYY-MM to month name
+            try:
+                month_date = datetime.strptime(month_key, '%Y-%m')
+                month_name = month_date.strftime('%b')
+                trend_data.append({
+                    'month': month_name,
+                    'forecast': round(data['forecast'], 1),
+                    'actual': round(data['actual'], 1)
+                })
+                print(f"Trend data: {month_name} - forecast={data['forecast']}, actual={data['actual']}")
+            except ValueError:
+                continue
+        
+        # If no data, return sample data for demo
+        if not trend_data:
+            # Get current month and previous months
+            current_date = datetime.now(timezone.utc)
+            months = []
+            for i in range(6):
+                month_date = current_date.replace(day=1) - timedelta(days=i*30)
+                months.append({
+                    'month': month_date.strftime('%b'),
+                    'forecast': 0,
+                    'actual': 0
+                })
+            months.reverse()
+            trend_data = months
+        
+        return jsonify(trend_data)
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch trends data: {str(e)}'}), 500
+
+@app.route('/api/forecasts', methods=['POST'])
+@jwt_required()
+def create_forecast():
+    data = request.get_json()
+    username = get_jwt_identity()
+    
+    try:
+        forecast_data = {
+            'project_id': data.get('project_id'),
+            'material': data.get('material'),
+            'quantity': data.get('quantity'),
+            'unit': data.get('unit'),
+            'range_min': data.get('range_min'),
+            'range_max': data.get('range_max'),
+            'confidence': data.get('confidence'),
+            'period': data.get('period'),
+            'status': data.get('status'),
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc)
+        }
+        
+        result = forecasts_collection.insert_one(forecast_data)
+        forecast_data['_id'] = str(result.inserted_id)
+        return jsonify(forecast_data), 201
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+# Material Actual Values API
+@app.route('/api/material-actuals', methods=['GET'])
+@jwt_required()
+def get_material_actuals():
+    try:
+        project_id = request.args.get('project_id')
+        month = request.args.get('month')
+        
+        query = {}
+        if project_id:
+            query['project_id'] = project_id
+        if month:
+            query['month'] = month
+            
+        actuals = list(material_actuals_collection.find(query, {'_id': 0}).sort('created_at', -1))
+        return jsonify(actuals)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/material-actuals', methods=['POST'])
+@jwt_required()
+def save_material_actuals():
+    data = request.get_json()
+    username = get_jwt_identity()
+    
+    try:
+        # Calculate current, previous, and next month
+        now = datetime.now(timezone.utc)
+        current_month = now.strftime('%Y-%m')
+        prev_month = (now.replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
+        next_month = (now.replace(day=28) + timedelta(days=4)).replace(day=1).strftime('%Y-%m')
+        
+        actual_data = {
+            'project_id': data.get('project_id'),
+            'month': data.get('month', current_month),
+            'material_values': data.get('material_values', {}),
+            'combined_score': data.get('combined_score', 0),
+            'forecast_total': data.get('forecast_total', 0),
+            'accuracy_percentage': data.get('accuracy_percentage', 0),
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        }
+        
+        # Use upsert to update existing or create new
+        result = material_actuals_collection.update_one(
+            {'project_id': actual_data['project_id'], 'month': actual_data['month']},
+            {'$set': actual_data},
+            upsert=True
+        )
+        
+        return jsonify({
+            'message': 'Material actuals saved successfully',
+            'project_id': actual_data['project_id'],
+            'month': actual_data['month'],
+            'current_month': current_month,
+            'prev_month': prev_month,
+            'next_month': next_month
+        }), 201
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+# Inventory API
+@app.route('/api/inventory', methods=['GET'])
+@jwt_required()
+def get_inventory():
+    try:
+        inventory = list(inventory_collection.find({}, {'_id': 0}))
+        return jsonify(inventory)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/inventory', methods=['POST'])
+@jwt_required()
+def create_inventory_item():
+    data = request.get_json()
+    username = get_jwt_identity()
+    
+    try:
+        inventory_data = {
+            'material_code': data.get('material_code'),
+            'name': data.get('name'),
+            'category': data.get('category'),
+            'warehouse': data.get('warehouse'),
+            'quantity': data.get('quantity'),
+            'unit': data.get('unit'),
+            'min_stock': data.get('min_stock'),
+            'max_stock': data.get('max_stock'),
+            'available': data.get('available'),
+            'reserved': data.get('reserved'),
+            'in_transit': data.get('in_transit'),
+            'status': data.get('status'),
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        }
+        
+        result = inventory_collection.insert_one(inventory_data)
+        inventory_data['_id'] = str(result.inserted_id)
+        return jsonify(inventory_data), 201
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+# Orders API
+@app.route('/api/orders', methods=['GET'])
+@jwt_required()
+def get_orders():
+    try:
+        orders = list(orders_collection.find({}, {'_id': 0}).sort('created_at', -1))
+        return jsonify(orders)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/orders', methods=['POST'])
+@jwt_required()
+def create_order():
+    data = request.get_json()
+    username = get_jwt_identity()
+    
+    try:
+        order_data = {
+            'order_id': data.get('order_id', f'ORD_{datetime.now().strftime("%Y%m%d%H%M%S")}'),
+            'project_id': data.get('project_id'),
+            'material': data.get('material'),
+            'dealer': data.get('dealer'),
+            'quantity': data.get('quantity'),
+            'unit_price': data.get('unit_price'),
+            'total_price': data.get('quantity', 0) * data.get('unit_price', 0),
+            'expected_delivery': data.get('expected_delivery'),
+            'status': data.get('status', 'PENDING'),
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
+        }
+        
+        result = orders_collection.insert_one(order_data)
+        order_data['_id'] = str(result.inserted_id)
+        return jsonify(order_data), 201
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 # Health check
 @app.route('/api/health', methods=['GET'])

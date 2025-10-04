@@ -40,3 +40,8 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Layout shift for fixed sidebar */
+main {
+  margin-left: 16rem; /* sidebar width 64 */
+}
