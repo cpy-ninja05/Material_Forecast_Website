@@ -1,0 +1,92 @@
+[1mdiff --cc backend/app.py[m
+[1mindex d1cc24d,07f1a51..0000000[m
+[1m--- a/backend/app.py[m
+[1m+++ b/backend/app.py[m
+[36m@@@ -926,42 -797,48 +950,87 @@@[m [mdef create_order()[m
+      except errors.PyMongoError as e:[m
+          return jsonify({'error': f'Database error: {str(e)}'}), 500[m
+  [m
+[32m++<<<<<<< HEAD[m
+[32m +@app.route('/api/projects/<project_id>/actual-values', methods=['POST'])[m
+[32m +@jwt_required()[m
+[32m +def save_actual_values(project_id):[m
+[32m +    try:[m
+[32m +        data = request.get_json()[m
+[32m +        actual_values = data.get('actual_values', {})[m
+[32m +        [m
+[32m +        # Get the latest forecast for this project[m
+[32m +        latest_forecast = forecasts_collection.find_one([m
+[32m +            {'project_id': project_id},[m
+[32m +            sort=[('created_at', -1)][m
+[32m +        )[m
+[32m +        [m
+[32m +        if not latest_forecast:[m
+[32m +            return jsonify({'error': 'No forecast found for this project'}), 404[m
+[32m +        [m
+[32m +        # Update the forecast with actual values[m
+[32m +        forecasts_collection.update_one([m
+[32m +            {'_id': latest_forecast['_id']},[m
+[32m +            {[m
+[32m +                '$set': {[m
+[32m +                    'actual_values': actual_values,[m
+[32m +                    'actual_values_updated_at': datetime.now(timezone.utc),[m
+[32m +                    'actual_values_updated_by': get_jwt_identity()[m
+[32m +                }[m
+[32m +            }[m
+[32m +        )[m
+[32m +        [m
+[32m +        return jsonify({[m
+[32m +            'message': 'Actual values saved successfully',[m
+[32m +            'project_id': project_id,[m
+[32m +            'actual_values': actual_values[m
+[32m +        })[m
+[32m +        [m
+[32m +    except Exception as e:[m
+[32m +        return jsonify({'error': f'Failed to save actual values: {str(e)}'}), 500[m
+[32m++=======[m
+[32m+ @app.route('/api/orders/<order_id>', methods=['PUT'])[m
+[32m+ @jwt_required()[m
+[32m+ def update_order_status(order_id):[m
+[32m+     data = request.get_json()[m
+[32m+     username = get_jwt_identity()[m
+[32m+     [m
+[32m+     try:[m
+[32m+         update_data = {[m
+[32m+             'status': data.get('status'),[m
+[32m+             'updated_by': username,[m
+[32m+             'updated_at': datetime.now(timezone.utc)[m
+[32m+         }[m
+[32m+         [m
+[32m+         result = orders_collection.update_one([m
+[32m+             {'order_id': order_id, 'created_by': username},[m
+[32m+             {'$set': update_data}[m
+[32m+         )[m
+[32m+         [m
+[32m+         if result.matched_count == 0:[m
+[32m+             return jsonify({'error': 'Order not found'}), 404[m
+[32m+             [m
+[32m+         return jsonify({'message': 'Order updated successfully'}), 200[m
+[32m+     except errors.PyMongoError as e:[m
+[32m+         return jsonify({'error': f'Database error: {str(e)}'}), 500[m
+[32m+ [m
+[32m+ @app.route('/api/orders/<order_id>', methods=['DELETE'])[m
+[32m+ @jwt_required()[m
+[32m+ def delete_order(order_id):[m
+[32m+     username = get_jwt_identity()[m
+[32m+     [m
+[32m+     try:[m
+[32m+         result = orders_collection.delete_one({[m
+[32m+             'order_id': order_id, [m
+[32m+             'created_by': username[m
+[32m+         })[m
+[32m+         [m
+[32m+         if result.deleted_count == 0:[m
+[32m+             return jsonify({'error': 'Order not found or you do not have permission to delete it'}), 404[m
+[32m+             [m
+[32m+         return jsonify({'message': 'Order deleted successfully'}), 200[m
+[32m+     except errors.PyMongoError as e:[m
+[32m+         return jsonify({'error': f'Database error: {str(e)}'}), 500[m
+[32m++>>>>>>> 11691b7f02a36dee31932fc3bad63f56765890b8[m
+  [m
+  # Health check[m
+  @app.route('/api/health', methods=['GET'])[m
