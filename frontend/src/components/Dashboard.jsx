@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Calendar, DollarSign, Filter, MapPin, Package, RefreshCw, Users, Building, Clock, TrendingUp, ShoppingCart, Plus } from 'lucide-react';
+import { Calendar, DollarSign, Filter, MapPin, Package, RefreshCw, Users, Building, Clock, TrendingUp, ShoppingCart, Plus } from 'lucide-react';
 import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import MetricCard from './ui/MetricCard';
@@ -17,6 +17,7 @@ const Dashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [trendData, setTrendData] = useState([]);
   const [dashboardMetrics, setDashboardMetrics] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
 
   useEffect(() => { 
     load(); 
@@ -96,6 +97,20 @@ const Dashboard = () => {
     return { inProgress, completed, planned };
   };
 
+  // Fallback helpers for cards when metrics are unavailable
+  const getTotalProjects = () => {
+    const metricVal = dashboardMetrics?.total_projects;
+    if (typeof metricVal === 'number' && metricVal >= 0) return metricVal;
+    return Array.isArray(projects) ? projects.length : 0;
+  };
+
+  const getActiveProjects = () => {
+    const metricVal = dashboardMetrics?.active_projects;
+    if (typeof metricVal === 'number' && metricVal >= 0) return metricVal;
+    const counts = getProjectCounts();
+    return counts.inProgress;
+  };
+
   // Calculate forecast accuracy from backend data
   const calculateForecastAccuracy = () => {
     if (dashboardMetrics && dashboardMetrics.forecast_accuracy !== undefined) {
@@ -109,7 +124,7 @@ const Dashboard = () => {
   const load = async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
     try {
-      const [overviewRes, materialsRes, projectsRes, trendsRes, metricsRes] = await Promise.all([
+      const results = await Promise.allSettled([
         axios.get('http://localhost:5000/api/analytics/overview'),
         axios.get('http://localhost:5000/api/analytics/materials'),
         axios.get('http://localhost:5000/api/projects', {
@@ -118,6 +133,7 @@ const Dashboard = () => {
           }
         }),
         axios.get('http://localhost:5000/api/dashboard/trends', {
+          params: selectedProjectId ? { project_id: selectedProjectId } : {},
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -128,79 +144,104 @@ const Dashboard = () => {
           }
         })
       ]);
-      setOverview(overviewRes.data || null);
-      setMaterialsTrend(materialsRes.data || null);
-      setProjects(Array.isArray(projectsRes.data) ? projectsRes.data : []);
-      setTrendData(trendsRes.data || []);
-      setDashboardMetrics(metricsRes.data || null);
-      
-      // Log the data we received
-      console.log('Dashboard data loaded:');
-      console.log('Trend data:', trendsRes.data);
-      console.log('Metrics data:', metricsRes.data);
-      console.log('Projects data:', projectsRes.data);
-      console.log('Projects count:', projectsRes.data?.length || 0);
-      
-      // Log monthly averages details
-      if (trendsRes.data && trendsRes.data.length > 0) {
-        console.log('=== MONTHLY AVERAGES DETAILS ===');
-        trendsRes.data.forEach(month => {
-          console.log(`${month.month}: Forecast Avg = ${month.forecast} tons (${month.forecast_count} projects), Actual Avg = ${month.actual} tons (${month.actual_count} projects)`);
-        });
+
+      const [overviewRes, materialsRes, projectsRes, trendsRes, metricsRes] = results;
+
+      if (overviewRes.status === 'fulfilled') {
+        setOverview(overviewRes.value.data || null);
+      } else {
+        console.warn('Overview load failed:', overviewRes.reason?.message || overviewRes.reason);
+        setOverview(null);
       }
-      
-      // Log forecast accuracy details
-      if (metricsRes.data) {
-        console.log('=== FORECAST ACCURACY DETAILS ===');
-        console.log('Overall forecast accuracy:', metricsRes.data.forecast_accuracy + '%');
-        console.log('Total projects:', metricsRes.data.total_projects);
-        console.log('Active projects:', metricsRes.data.active_projects);
-        console.log('Timestamp:', metricsRes.data.timestamp);
-        if (metricsRes.data.debug_info) {
-          console.log('Debug info:', metricsRes.data.debug_info);
-          console.log('Individual accuracies:', metricsRes.data.debug_info.individual_accuracies);
-          console.log('Calculation details:', metricsRes.data.debug_info.calculation_details);
-        }
+
+      if (materialsRes.status === 'fulfilled') {
+        setMaterialsTrend(materialsRes.value.data || null);
+      } else {
+        console.warn('Materials trend load failed:', materialsRes.reason?.message || materialsRes.reason);
+        setMaterialsTrend(null);
       }
-      
-      // Log project status distribution
-      if (projectsRes.data && Array.isArray(projectsRes.data)) {
+
+      if (projectsRes.status === 'fulfilled') {
+        const pdata = projectsRes.value.data;
+        setProjects(Array.isArray(pdata) ? pdata : []);
+        if (Array.isArray(pdata)) {
         console.log('=== PROJECT STATUS DISTRIBUTION ===');
-        console.log('Raw projects data:', projectsRes.data);
-        console.log('First project sample:', projectsRes.data[0]);
-        console.log('Projects state after setProjects:', projects);
-        
-        const inProgress = projectsRes.data.filter(p => p.status === 'IN PROGRESS').length;
-        const completed = projectsRes.data.filter(p => p.status === 'COMPLETED').length;
-        const planned = projectsRes.data.filter(p => p.status === 'PLANNED').length;
-        
+          const inProgress = pdata.filter(p => p.status === 'IN PROGRESS').length;
+          const completed = pdata.filter(p => p.status === 'COMPLETED').length;
+          const planned = pdata.filter(p => p.status === 'PLANNED').length;
         console.log('In Progress:', inProgress);
         console.log('Completed:', completed);
         console.log('Planned:', planned);
-        console.log('Total projects:', projectsRes.data.length);
-        
-        // Log all unique statuses found
-        const uniqueStatuses = [...new Set(projectsRes.data.map(p => p.status))];
-        console.log('All unique statuses found:', uniqueStatuses);
+          console.log('Total projects:', pdata.length);
+          const uniqueStatuses = [...new Set(pdata.map(p => p.status))];
+          console.log('All unique statuses found:', uniqueStatuses);
+        }
       } else {
-        console.log('No projects data received from API');
-        console.log('projectsRes.data:', projectsRes.data);
+        console.warn('Projects load failed:', projectsRes.reason?.message || projectsRes.reason);
+        setProjects([]);
+      }
+
+      if (trendsRes.status === 'fulfilled') {
+        const tdata = trendsRes.value.data || [];
+        setTrendData(tdata);
+        if (tdata.length > 0) {
+          console.log('=== MONTHLY AVERAGES DETAILS ===');
+          tdata.forEach(month => {
+            console.log(`${month.month}: Forecast Avg = ${month.forecast} tons (${month.forecast_count} projects), Actual Avg = ${month.actual} tons (${month.actual_count} projects)`);
+          });
+        }
+      } else {
+        console.warn('Trends load failed:', trendsRes.reason?.message || trendsRes.reason);
+        setTrendData([]);
+      }
+
+      if (metricsRes.status === 'fulfilled') {
+        setDashboardMetrics(metricsRes.value.data || null);
+        const m = metricsRes.value.data;
+        if (m) {
+          console.log('=== FORECAST ACCURACY DETAILS ===');
+          console.log('Overall forecast accuracy:', m.forecast_accuracy + '%');
+          console.log('Total projects:', m.total_projects);
+          console.log('Active projects:', m.active_projects);
+          console.log('Timestamp:', m.timestamp);
+          if (m.debug_info) {
+            console.log('Debug info:', m.debug_info);
+            console.log('Individual accuracies:', m.debug_info.individual_accuracies);
+            console.log('Calculation details:', m.debug_info.calculation_details);
+          }
+        }
+      } else {
+        console.warn('Metrics load failed:', metricsRes.reason?.message || metricsRes.reason);
+        setDashboardMetrics(null);
       }
       
-      // Log material forecasts generation
       console.log('=== MATERIAL FORECASTS ===');
-      const materialForecasts = generateMaterialForecasts();
-      console.log('Generated material forecasts:', materialForecasts);
+      const mf = generateMaterialForecasts();
+      console.log('Generated material forecasts:', mf);
     } catch (e) {
-      console.error('dashboard load failed', e);
-      console.log('API error - setting empty data instead of sample data');
-      // If API fails, set empty data instead of sample data
-      setTrendData([]);
+      console.error('dashboard load failed (unexpected)', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
+
+  // Reload trends when project filter changes
+  useEffect(() => {
+    // Only reload trends, keep other datasets
+    (async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/dashboard/trends', {
+          params: selectedProjectId ? { project_id: selectedProjectId } : {},
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        setTrendData(res.data || []);
+      } catch (e) {
+        console.error('failed to load filtered trends', e);
+        setTrendData([]);
+      }
+    })();
+  }, [selectedProjectId]);
 
 
   if (loading) {
@@ -214,17 +255,8 @@ const Dashboard = () => {
     );
   }
 
-  if (!overview) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-gray-600">Data not found</p>
-          <button onClick={() => load(true)} className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Retry</button>
-        </div>
-      </div>
-    );
-  }
+  // Do not block the entire dashboard when some datasets are missing.
+  // Each widget below handles its own empty state gracefully.
 
   // Sample data for the dashboard matching the image
   const sampleProjects = [
@@ -324,8 +356,8 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">TOTAL PROJECTS</p>
-                <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.total_projects || 0}</p>
-                <p className="text-sm text-green-600">+{dashboardMetrics?.projects_this_month || 0} this month</p>
+                <p className="text-3xl font-bold text-gray-900">{getTotalProjects()}</p>
+                <p className="text-sm text-green-600">+{dashboardMetrics?.projects_this_month ?? 0} this month</p>
               </div>
               <Building className="h-8 w-8 text-blue-600" />
             </div>
@@ -335,7 +367,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">ACTIVE PROJECTS</p>
-                <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.active_projects || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{getActiveProjects()}</p>
                 <p className="text-sm text-gray-600">Currently running</p>
               </div>
               <Clock className="h-8 w-8 text-orange-600" />
@@ -394,14 +426,26 @@ const Dashboard = () => {
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => load(true)}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                disabled={refreshing}
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh Data
-              </button>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm text-gray-700"
+                >
+                  <option value="">All Projects</option>
+                  {projects.map(p => (
+                    <option key={p.project_id || p.id} value={p.project_id || p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => load(true)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={refreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh Data
+                </button>
+              </div>
             </div>
             
             <div className="h-80">
@@ -657,6 +701,7 @@ const Dashboard = () => {
           {/* Recent Projects */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Projects</h3>
+            {projects.length > 0 ? (
             <div className="space-y-4">
               {projects.slice(0, 4).map((project) => (
                 <div key={project._id || project.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -679,6 +724,15 @@ const Dashboard = () => {
                 </div>
               ))}
             </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Building className="w-6 h-6 text-gray-400" />
+                </div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No Projects Yet</h4>
+                <p className="text-gray-500">Projects will appear here once created or fetched.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

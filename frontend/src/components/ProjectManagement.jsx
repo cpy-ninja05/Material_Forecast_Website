@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Building, MapPin, Calendar, DollarSign, TrendingUp, Plus, Edit, Eye, BarChart3, Grid3X3, AlertCircle, CheckCircle, Clock, Save, X } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import axios from 'axios';
 
 // Edit Project Form Component
@@ -524,6 +524,9 @@ const ProjectManagement = () => {
   const [deletingProject, setDeletingProject] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [error, setError] = useState('');
+  const [chartView, setChartView] = useState('tons');
+  const [forecastMonths, setForecastMonths] = useState([]); // YYYY-MM strings with predictions only
+  const [selectedForecastMonth, setSelectedForecastMonth] = useState(null);
 
   // Target materials from the model
   const targetMaterials = [
@@ -562,6 +565,31 @@ const ProjectManagement = () => {
     } catch (error) {
       console.error('Failed to load project forecasts:', error);
     }
+  };
+
+  const getCurrentMonthKey = () => new Date().toISOString().slice(0, 7); // YYYY-MM
+
+  const formatMonth = (ym) => {
+    if (!ym) return '';
+    const [y, m] = ym.split('-').map(Number);
+    const d = new Date(y, (m || 1) - 1, 1);
+    return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  };
+
+  const selectForecastMonth = (month, listByMonth) => {
+    const list = listByMonth || (projectForecasts[selectedProject?.project_id] || []);
+    const match = list.find(f => f.forecast_month === month);
+    if (!match) return;
+    setSelectedForecastMonth(month);
+    setForecastData(match.predictions || null);
+    if (match.actual_values && Object.keys(match.actual_values).length > 0) {
+      setMaterialActualValues(match.actual_values);
+      setIsSampleData(false);
+    } else {
+      setMaterialActualValues(match.actual_values || {});
+      setIsSampleData(true);
+    }
+    setForecastError('');
   };
 
   const loadProjects = async () => {
@@ -704,34 +732,34 @@ const ProjectManagement = () => {
       });
 
       if (response.data && response.data.length > 0) {
-        // Get the most recent forecast
-        const latestForecast = response.data[0];
-        setForecastData(latestForecast.predictions);
-        
-        // Use saved actual values if they exist, otherwise use generated ones
-        if (latestForecast.actual_values && Object.keys(latestForecast.actual_values).length > 0) {
-          setMaterialActualValues(latestForecast.actual_values);
-          setIsSampleData(false); // Real saved data
-          console.log('Loaded saved actual values:', latestForecast.actual_values);
-        } else {
-          // Generate dynamic actual values if none saved
-          setMaterialActualValues(latestForecast.actual_values || {});
-          setIsSampleData(true); // Generated data
-          console.log('No saved actual values, using generated ones');
+        // Keep only months that have predictions
+        const forecastsWithPreds = response.data.filter(f => f && f.predictions && Object.keys(f.predictions).length > 0);
+        const months = forecastsWithPreds.map(f => f.forecast_month).filter(Boolean);
+        setForecastMonths(months);
+
+        // Choose current month if present, otherwise latest available
+        const currentKey = getCurrentMonthKey();
+        const byMonth = forecastsWithPreds;
+        const chosen = byMonth.find(f => f.forecast_month === currentKey) || byMonth[0];
+        if (chosen) {
+          selectForecastMonth(chosen.forecast_month, byMonth);
         }
-        
-        setForecastError('');
-        console.log('Loaded latest forecast:', latestForecast);
+
+        console.log('Loaded forecast months:', months);
       } else {
         setForecastError('No forecast data available for this project. Please generate a forecast first.');
         setForecastData(null);
         setMaterialActualValues({});
+        setForecastMonths([]);
+        setSelectedForecastMonth(null);
       }
     } catch (error) {
       console.error('Failed to load project data:', error);
       setForecastError('Failed to load forecast data');
       setForecastData(null);
       setMaterialActualValues({});
+      setForecastMonths([]);
+      setSelectedForecastMonth(null);
     }
   };
 
@@ -990,6 +1018,8 @@ const ProjectManagement = () => {
                   </button>
             </div>
             
+            {/* Month pills are not shown on cards; only inside modals */}
+            
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => openEditModal(project)}
@@ -1079,41 +1109,28 @@ const ProjectManagement = () => {
             </button>
           </div>
 
+          {projectForecasts[selectedProject?.project_id] && projectForecasts[selectedProject?.project_id].length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {(projectForecasts[selectedProject?.project_id] || [])
+                .filter(f => f && f.predictions && Object.keys(f.predictions).length > 0)
+                .map(f => f.forecast_month)
+                .filter(Boolean)
+                .map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => selectForecastMonth(m)}
+                    className={`px-3 py-1 text-xs rounded-full border ${selectedForecastMonth === m ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    {formatMonth(m)}
+                  </button>
+                ))}
+            </div>
+          )}
+
             {forecastLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-4"></div>
                 <p className="text-blue-600">Loading forecast data...</p>
-              </div>
-            ) : forecastError && !forecastData ? (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 px-8 py-6 rounded-xl mb-6">
-                <div className="flex items-start">
-                  <div className="text-blue-600 mr-4 flex-shrink-0 mt-1">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-blue-900 text-lg mb-2">No Forecast Available</h4>
-                    <p className="text-sm text-blue-700 mb-4 leading-relaxed">{forecastError}</p>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={redirectToForecasting}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium transition-colors duration-200 shadow-sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        Generate Forecast
-                      </button>
-                      <button
-                        onClick={() => setShowForecastModal(false)}
-                        className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors duration-200"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
             ) : null}
 
@@ -1130,19 +1147,77 @@ const ProjectManagement = () => {
             )}
 
             {forecastData ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.entries(forecastData).map(([material, quantity]) => (
-                  <div key={material} className="bg-gray-50 p-4 rounded-lg">
-                    <div className="font-medium text-sm text-gray-700 mb-1">
-                      {material.replace('quantity_', '').replace('_', ' ').toUpperCase()}
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center justify-end mb-3 gap-2">
+                  <button
+                    onClick={() => setChartView('tons')}
+                    className={`px-3 py-1 text-xs rounded border ${chartView === 'tons' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                  >Tons</button>
+                  <button
+                    onClick={() => setChartView('units')}
+                    className={`px-3 py-1 text-xs rounded border ${chartView === 'units' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                  >Units</button>
                         </div>
-                    <div className="text-2xl font-bold text-gray-900">{quantity.toFixed(2)}</div>
-                    <div className="text-xs text-gray-500">
-                      {material.includes('tons') ? 'Tons' : 
-                       material.includes('count') ? 'Units' : 'Units'}
+                <div className="h-96">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={Object.entries(forecastData)
+                        .filter(([key]) => chartView === 'tons' ? key.includes('tons') : key.includes('count'))
+                        .map(([key, qty]) => {
+                          const unit = key.includes('tons') ? 'Tons' : 'Units';
+                          const value = Number(qty);
+                          return {
+                            key,
+                            name: key
+                              .replace('quantity_', '')
+                              .replace(/_/g, ' ')
+                              .replace(/\b\w/g, (c) => c.toUpperCase()),
+                            value,
+                            unit
+                          };
+                        })}
+                      margin={{ top: 10, right: 20, left: 0, bottom: 30 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis
+                        dataKey="name"
+                        interval={0}
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        angle={-30}
+                        textAnchor="end"
+                        height={60}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        tickFormatter={(v) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(v))}
+                        domain={[0, 'auto']}
+                        allowDecimals
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                        }}
+                        formatter={(value, _name, props) => {
+                          const unit = props?.payload?.unit || '';
+                          const num = Number(value);
+                          if (unit === 'Units') {
+                            if (num >= 1000) {
+                              const k = (num / 1000).toFixed(1);
+                              return [`${k}k ${unit}`, 'Quantity'];
+                            }
+                            return [`${Math.round(num)} ${unit}`, 'Quantity'];
+                          }
+                          const formatted = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(num);
+                          return [`${formatted} ${unit}`, 'Quantity'];
+                        }}
+                      />
+                      <Bar dataKey={(d) => (d.unit === 'Units' ? Math.round(d.value) : d.value)} fill="#3b82f6" radius={[4, 4, 0, 0]} minPointSize={6} />
+                    </BarChart>
+                  </ResponsiveContainer>
                     </div>
-                  </div>
-                ))}
               </div>
             ) : (
               <div className="bg-gradient-to-br from-slate-50 to-gray-100 border border-slate-200 text-slate-600 px-8 py-12 rounded-xl text-center">
@@ -1196,6 +1271,24 @@ const ProjectManagement = () => {
               </button>
             </div>
                 
+            {(projectForecasts[selectedProject?.project_id] || []).length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {(projectForecasts[selectedProject?.project_id] || [])
+                  .filter(f => f && f.predictions && Object.keys(f.predictions).length > 0)
+                  .map(f => f.forecast_month)
+                  .filter(Boolean)
+                  .map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => selectForecastMonth(m)}
+                      className={`px-3 py-1 text-xs rounded-full border ${selectedForecastMonth === m ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                    >
+                      {formatMonth(m)}
+                    </button>
+                  ))}
+              </div>
+            )}
+
                 {/* Sample Data Indicator */}
                 {isSampleData && (
                   <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-4">
@@ -1290,25 +1383,77 @@ const ProjectManagement = () => {
               );
             })()}
 
-            {/* Material Summary */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Entered Materials</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {targetMaterials.map((material) => {
-                  const value = materialActualValues[material.key];
-                  if (value && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
-                    return (
-                      <div key={material.key} className="bg-white p-3 rounded border">
-                        <div className="font-medium text-sm text-gray-700">{material.name}</div>
-                        <div className="text-lg font-bold text-gray-900">{parseFloat(value).toFixed(2)}</div>
-                        <div className="text-xs text-gray-500">{material.unit}</div>
+            {/* Forecast vs Actual Chart with toggle (Tons/Units) */}
+            {forecastData && (
+              <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-gray-900">Forecast vs Actual by Material</h3>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setChartView('tons')} className={`px-3 py-1 text-xs rounded border ${chartView === 'tons' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}>Tons</button>
+                    <button onClick={() => setChartView('units')} className={`px-3 py-1 text-xs rounded border ${chartView === 'units' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}>Units</button>
                       </div>
-                    );
-                  }
-                  return null;
-                })}
+                </div>
+                <div className="h-96">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={targetMaterials
+                        .filter((m) => chartView === 'tons' ? m.unit === 'tons' : m.unit === 'units')
+                        .map((m) => {
+                          const isUnits = chartView !== 'tons';
+                          const scale = isUnits ? 1000 : 1; // display in thousands for units to reduce squish
+                          const f = Number(forecastData?.[m.key] || 0);
+                          const a = Number(materialActualValues?.[m.key] || 0);
+                          return {
+                            name: m.name,
+                            unit: isUnits ? 'Units' : 'Tons',
+                            forecast: f / scale,
+                            actual: a / scale,
+                            originalForecast: f,
+                            originalActual: a,
+                            scale
+                          };
+                        })}
+                      margin={{ top: 10, right: 20, left: 0, bottom: 30 }}
+                      barCategoryGap="20%"
+                      barGap={4}
+                      maxBarSize={48}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="name" interval={0} tick={{ fontSize: 12, fill: '#6b7280' }} angle={-30} textAnchor="end" height={60} />
+                      <YAxis 
+                        tick={{ fontSize: 12, fill: '#6b7280' }} 
+                        tickFormatter={(v) => chartView === 'units' ? Number(v).toFixed(1) : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(v))} 
+                        domain={[0, 'auto']} 
+                      />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                        formatter={(value, name, props) => {
+                          const u = props?.payload?.unit || '';
+                          if (u === 'Units') {
+                            // show original values for clarity
+                            const original = name === 'Forecast' ? props?.payload?.originalForecast : props?.payload?.originalActual;
+                            const num = Number(original || 0);
+                            const formatted = num >= 1000 ? `${(num/1000).toFixed(1)}k` : `${Math.round(num)}`;
+                            return [`${formatted} ${u}`, name];
+                          }
+                          const num = Number(value);
+                          const formatted = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(num);
+                          return [`${formatted} ${u}`, name];
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey={(d) => (d.unit === 'Units' ? Math.round(d.forecast) : d.forecast)} name="Forecast" fill="#3b82f6" radius={[4,4,0,0]} minPointSize={6} />
+                      <Bar dataKey={(d) => (d.unit === 'Units' ? Math.round(d.actual) : d.actual)} name="Actual" fill="#22c55e" radius={[4,4,0,0]} minPointSize={6} />
+                    </BarChart>
+                  </ResponsiveContainer>
                     </div>
+                {chartView === 'units' && (
+                  <div className="text-xs text-gray-500 mt-2">Note: Units displayed in thousands (1.0 = 1000 Units) for readability.</div>
+                )}
                   </div>
+            )}
+
+            {/* Removed Entered Materials summary to avoid duplication with inputs above */}
                   
             <div className="flex gap-3">
                     <button
