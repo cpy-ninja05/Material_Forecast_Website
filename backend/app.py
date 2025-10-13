@@ -26,6 +26,7 @@ def init_db():
     users_collection = db['users']
     projects_collection = db['projects']
     forecasts_collection = db['forecasts']
+    project_forecasts_collection = db['project_forecasts']  # new consolidated schema
     inventory_collection = db['inventory']
     orders_collection = db['orders']
     material_actuals_collection = db['material_actuals']
@@ -38,13 +39,15 @@ def init_db():
         if projects_collection.count_documents({'project_id': None}) == 0:
             projects_collection.create_index('project_id', unique=True)
         forecasts_collection.create_index([('project_id', 1), ('material', 1), ('created_at', 1)])
+        project_forecasts_collection.create_index('project_id', unique=True)
+        project_forecasts_collection.create_index('forecasts.forecast_month')
         inventory_collection.create_index([('material_code', 1), ('warehouse', 1)], unique=True)
         orders_collection.create_index('order_id', unique=True)
         material_actuals_collection.create_index([('project_id', 1), ('month', 1)], unique=True)
     except errors.PyMongoError as e:
         print(f"Error creating indexes: {e}")
 
-    return client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection
+    return client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection
 
 # Load models and encoders
 def load_models():
@@ -68,9 +71,22 @@ def load_data():
         return None
 
 # Initialize
-client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection = init_db()
+client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection = init_db()
 model, feature_cols, target_cols, label_encoders = load_models()
 df = load_data()
+
+# Helpers
+def sum_numeric_values(obj):
+    try:
+        return sum(float(v) for v in obj.values() if isinstance(v, (int, float)) or (isinstance(v, str) and v.strip() != ''))
+    except Exception:
+        total = 0.0
+        for v in obj.values():
+            try:
+                total += float(v)
+            except Exception:
+                continue
+        return total
 
 # Authentication routes
 @app.route('/api/me', methods=['GET'])
@@ -233,7 +249,10 @@ def dispatch_data():
     except Exception as e:
         return jsonify({'error': f'Failed to build dispatch data: {str(e)}'}), 500
 
-# Forecasting route
+"""
+Legacy forecasting route (still computes predictions). After computing, store
+month-wise under project_forecasts with upsert on (project_id, forecast_month).
+"""
 @app.route('/api/forecast', methods=['POST'])
 @jwt_required()
 def forecast():
@@ -326,67 +345,44 @@ def forecast():
         for i, col in enumerate(target_cols):
             results[col] = float(predictions[0][i])
         
-        # Save forecast to database with rolling window logic
+        # Save forecast month-wise under a single project document
         try:
-            # Check if forecast already exists for this project and month
-            existing_forecast = forecasts_collection.find_one({
-                'project_id': project_id,
-                'forecast_month': forecast_month
-            })
-            
-            if existing_forecast:
-                # Update existing forecast instead of creating duplicate
-                forecasts_collection.update_one(
-                    {'project_id': project_id, 'forecast_month': forecast_month},
+            # Ensure project doc exists
+            project_forecasts_collection.update_one(
+                {'project_id': project_id},
+                {'$setOnInsert': {'project_id': project_id, 'forecasts': []}},
+                upsert=True
+            )
+
+            # Try to update existing month entry
+            res = project_forecasts_collection.update_one(
+                {'project_id': project_id, 'forecasts.forecast_month': forecast_month},
+                {
+                    '$set': {
+                        'forecasts.$.predictions': results,
+                        'forecasts.$.actual_values': {},
+                        'forecasts.$.updated_at': datetime.now(timezone.utc)
+                    }
+                }
+            )
+
+            if res.matched_count == 0:
+                # Push new month entry
+                project_forecasts_collection.update_one(
+                    {'project_id': project_id},
                     {
-                        '$set': {
-                            'input_data': input_data,
-                            'predictions': results,
-                            'updated_at': datetime.now(timezone.utc),
-                            'updated_by': username
+                        '$push': {
+                            'forecasts': {
+                                'forecast_month': forecast_month,
+                                'predictions': results,
+                                'actual_values': {},
+                                'created_at': datetime.now(timezone.utc),
+                                'updated_at': datetime.now(timezone.utc)
+                            }
                         }
                     }
                 )
-                print(f"Forecast updated for project {project_id}, month {forecast_month}")
-            else:
-                # Create new forecast with actual values
-                import random
-                actual_values = {}
-                for material, forecast_value in results.items():
-                    # Generate actual value with ±15% variation from forecast
-                    variation = random.uniform(0.85, 1.15)
-                    actual_value = forecast_value * variation
-                    actual_values[material] = round(actual_value, 2)
-                
-                forecast_data = {
-                    'project_id': project_id,
-                    'forecast_month': forecast_month,
-                    'forecast_year': int(forecast_month.split('-')[0]),
-                    'forecast_month_num': int(forecast_month.split('-')[1]),
-                    'input_data': input_data,
-                    'predictions': results,
-                    'actual_values': actual_values,
-                    'created_at': datetime.now(timezone.utc),
-                    'created_by': username,
-                    'updated_at': datetime.now(timezone.utc),
-                    'updated_by': username
-                }
-                forecasts_collection.insert_one(forecast_data)
-                print(f"Forecast created for project {project_id}, month {forecast_month}")
-            
-            # Implement rolling window: Keep only last 4 months of forecasts
-            # Get all forecasts for this project, sorted by forecast_month
-            all_forecasts = list(forecasts_collection.find(
-                {'project_id': project_id}
-            ).sort('forecast_month', -1))  # Sort by month descending
-            
-            # If more than 4 months, archive the oldest ones
-            if len(all_forecasts) > 4:
-                forecasts_to_archive = all_forecasts[4:]  # Get forecasts beyond the 4th
-                for forecast in forecasts_to_archive:
-                    # Move to archived collection or delete
-                    forecasts_collection.delete_one({'_id': forecast['_id']})
-                    print(f"Archived old forecast for project {project_id}, month {forecast['forecast_month']}")
+            print(f"Upserted forecast for project {project_id}, month {forecast_month}")
             
         except Exception as e:
             print(f"Failed to save forecast: {e}")
@@ -517,10 +513,18 @@ def get_dashboard_metrics():
         # Get active projects count (status = 'IN PROGRESS')
         active_projects = projects_collection.count_documents({'status': 'IN PROGRESS'})
         
-        # Calculate forecast accuracy from stored actual values in forecasts
-        forecasts_with_actuals = list(forecasts_collection.find({
-            'actual_values': {'$exists': True, '$ne': {}}
-        }))
+        # Calculate forecast accuracy from stored actual values (new schema)
+        raw = list(project_forecasts_collection.find({}))
+        forecasts_with_actuals = []
+        for doc in raw:
+            for f in doc.get('forecasts', []):
+                if f.get('predictions') and f.get('actual_values') is not None:
+                    # Count even empty dicts as present but zero; use robust sum
+                    f_total = sum_numeric_values(f.get('predictions', {}))
+                    a_total = sum_numeric_values(f.get('actual_values', {}))
+                    f['_calc_forecast_total'] = f_total
+                    f['_calc_actual_total'] = a_total
+                    forecasts_with_actuals.append(f)
         
         print(f"Found {len(forecasts_with_actuals)} forecasts with actual values")
         
@@ -530,10 +534,10 @@ def get_dashboard_metrics():
             individual_accuracies = []
             
             for forecast in forecasts_with_actuals:
-                if 'predictions' in forecast and 'actual_values' in forecast:
+                if 'predictions' in forecast:
                     try:
-                        forecast_total = sum(forecast['predictions'].values())
-                        actual_total = sum(forecast['actual_values'].values())
+                        forecast_total = forecast.get('_calc_forecast_total', sum_numeric_values(forecast['predictions']))
+                        actual_total = forecast.get('_calc_actual_total', sum_numeric_values(forecast.get('actual_values', {})))
                         
                         if forecast_total > 0:
                             accuracy = (1 - abs(actual_total - forecast_total) / forecast_total) * 100
@@ -598,11 +602,21 @@ def get_dashboard_metrics():
 def get_dashboard_trends():
     try:
         print("Dashboard trends endpoint called")
-        
-        # Get all forecasts (remove date filter for now to get all data)
-        forecasts = list(forecasts_collection.find({}).sort('forecast_month', 1))
-        print(f"Found {len(forecasts)} total forecasts")
-        
+        # Optional filter by project_id
+        project_filter = request.args.get('project_id')
+        query = {'project_id': project_filter} if project_filter else {}
+
+        # Read from consolidated project_forecasts (optionally filtered)
+        docs = list(project_forecasts_collection.find(query))
+        forecasts = []
+        for d in docs:
+            for f in d.get('forecasts', []):
+                if f.get('predictions'):
+                    f['_calc_forecast_total'] = sum_numeric_values(f.get('predictions', {}))
+                    f['_calc_actual_total'] = sum_numeric_values(f.get('actual_values', {}))
+                    forecasts.append(f)
+        print(f"Found {len(forecasts)} total forecasts (new schema)")
+
         # Aggregate data by month
         monthly_data = {}
         
@@ -621,13 +635,13 @@ def get_dashboard_trends():
                 
                 # Calculate total forecast quantity
                 try:
-                    total_forecast = sum(forecast['predictions'].values())
+                    total_forecast = forecast.get('_calc_forecast_total', sum_numeric_values(forecast.get('predictions', {})))
                     monthly_data[month]['forecast_total'] += total_forecast
                     monthly_data[month]['forecast_count'] += 1
                     
                     # Use stored actual values
-                    if 'actual_values' in forecast and forecast['actual_values']:
-                        total_actual = sum(forecast['actual_values'].values())
+                    if 'actual_values' in forecast and forecast['actual_values'] is not None:
+                        total_actual = forecast.get('_calc_actual_total', sum_numeric_values(forecast.get('actual_values', {})))
                         monthly_data[month]['actual_total'] += total_actual
                         monthly_data[month]['actual_count'] += 1
                         print(f"Added actual values for {month}: {total_actual} (project: {forecast.get('project_id', 'unknown')})")
@@ -709,11 +723,13 @@ def get_project_forecast_by_month(project_id, month):
 @jwt_required()
 def generate_actual_values(project_id, month):
     try:
-        # Get the forecast data
-        forecast = forecasts_collection.find_one({
-            'project_id': project_id,
-            'forecast_month': month
-        })
+        # Get the forecast data from consolidated doc
+        doc = project_forecasts_collection.find_one({'project_id': project_id})
+        forecast = None
+        for f in (doc.get('forecasts', []) if doc else []):
+            if f.get('forecast_month') == month:
+                forecast = f
+                break
         
         if not forecast:
             return jsonify({'error': f'No forecast found for project {project_id} in month {month}'}), 404
@@ -738,25 +754,31 @@ def generate_actual_values(project_id, month):
     except Exception as e:
         return jsonify({'error': f'Failed to generate actual values: {str(e)}'}), 500
 
-# Get all forecasts for a project (for month selector)
+# Get all forecasts for a project (month-wise, new schema)
 @app.route('/api/projects/<project_id>/forecasts', methods=['GET'])
 @jwt_required()
 def get_project_forecasts(project_id):
     try:
-        forecasts = list(forecasts_collection.find(
-            {'project_id': project_id}
-        ).sort('forecast_month', -1))
-        
-        # Convert ObjectIds and dates for JSON serialization
-        for forecast in forecasts:
-            forecast['_id'] = str(forecast['_id'])
-            if 'created_at' in forecast:
-                forecast['created_at'] = forecast['created_at'].isoformat()
-            if 'updated_at' in forecast:
-                forecast['updated_at'] = forecast['updated_at'].isoformat()
-            if 'actual_values_updated_at' in forecast:
-                forecast['actual_values_updated_at'] = forecast['actual_values_updated_at'].isoformat()
-        
+        # New schema first
+        doc = project_forecasts_collection.find_one({'project_id': project_id})
+        forecasts = (doc.get('forecasts', []) if doc else [])
+        forecasts = [f for f in forecasts if f.get('predictions')]
+        # Fallback to legacy collection if empty (for older data)
+        if not forecasts:
+            legacy = list(forecasts_collection.find({'project_id': project_id}))
+            forecasts = []
+            for f in legacy:
+                entry = {
+                    'forecast_month': f.get('forecast_month'),
+                    'predictions': f.get('predictions', {}),
+                    'actual_values': f.get('actual_values', {}),
+                    'created_at': f.get('created_at').isoformat() if f.get('created_at') else None,
+                    'updated_at': f.get('updated_at').isoformat() if f.get('updated_at') else None
+                }
+                if entry['forecast_month'] and entry['predictions']:
+                    forecasts.append(entry)
+        # Sort newest first
+        forecasts.sort(key=lambda x: x.get('forecast_month', ''), reverse=True)
         return jsonify(forecasts)
     except Exception as e:
         return jsonify({'error': f'Failed to fetch forecasts: {str(e)}'}), 500
@@ -958,32 +980,46 @@ def create_order():
 def save_actual_values(project_id):
     try:
         data = request.get_json()
+        requested_month = data.get('month')  # optional 'YYYY-MM'
         actual_values = data.get('actual_values', {})
-        
-        # Get the latest forecast for this project
-        latest_forecast = forecasts_collection.find_one(
-            {'project_id': project_id},
-            sort=[('created_at', -1)]
-        )
-        
-        if not latest_forecast:
+
+        # Load consolidated project forecasts
+        doc = project_forecasts_collection.find_one({'project_id': project_id})
+        if not doc or not doc.get('forecasts'):
             return jsonify({'error': 'No forecast found for this project'}), 404
-        
-        # Update the forecast with actual values
-        forecasts_collection.update_one(
-            {'_id': latest_forecast['_id']},
+
+        # Determine target month: requested month or latest available
+        months = [f for f in doc['forecasts'] if f.get('predictions')]
+        if not months:
+            return jsonify({'error': 'No forecast found for this project'}), 404
+
+        if requested_month:
+            target_month = requested_month
+        else:
+            # Latest by forecast_month string (YYYY-MM)
+            target_month = sorted((m.get('forecast_month') for m in months if m.get('forecast_month')), reverse=True)[0]
+
+        # Update the month entry using arrayFilters
+        result = project_forecasts_collection.update_one(
+            {'project_id': project_id},
             {
                 '$set': {
-                    'actual_values': actual_values,
-                    'actual_values_updated_at': datetime.now(timezone.utc),
-                    'actual_values_updated_by': get_jwt_identity()
+                    'forecasts.$[m].actual_values': actual_values,
+                    'forecasts.$[m].updated_at': datetime.now(timezone.utc),
+                    'forecasts.$[m].actual_values_updated_at': datetime.now(timezone.utc),
+                    'forecasts.$[m].actual_values_updated_by': get_jwt_identity()
                 }
-            }
+            },
+            array_filters=[{'m.forecast_month': target_month}]
         )
-        
+
+        if result.matched_count == 0:
+            return jsonify({'error': f'No forecast found for month {target_month}'}), 404
+
         return jsonify({
             'message': 'Actual values saved successfully',
             'project_id': project_id,
+            'month': target_month,
             'actual_values': actual_values
         })
         

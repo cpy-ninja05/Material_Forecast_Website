@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BarChart3, Calculator, Map, ShoppingCart, Boxes, LogOut, Zap, Building } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,18 +16,31 @@ const Navigation = () => {
     { name: 'Inventory', href: '/inventory', icon: Boxes },
   ];
 
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dateString = now.toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-gray-800 flex flex-col">
       {/* Logo Section */}
       <div className="h-20 flex items-center px-6 border-b border-gray-700">
-        <div className="flex items-center">
-          <div className="flex items-center justify-center w-8 h-8 bg-purple-600 rounded-lg mr-3">
-            <Zap className="h-5 w-5 text-white" />
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center">
+            <div className="flex items-center justify-center w-8 h-8 bg-purple-600 rounded-lg mr-3">
+              <Zap className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="text-lg font-bold text-white">PLANGRID</div>
+              <div className="text-xs text-gray-300">MATERIALS PLATFORM</div>
+            </div>
           </div>
-          <div>
-            <div className="text-lg font-bold text-white">PLANGRID</div>
-            <div className="text-xs text-gray-300">MATERIALS PLATFORM</div>
-          </div>
+          <div />
         </div>
       </div>
 
@@ -58,13 +71,19 @@ const Navigation = () => {
 
       {/* User Profile Section */}
       <div className="px-4 py-4 border-t border-gray-700">
-        <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-3">
-            {user?.username ? user.username.substring(0, 2).toUpperCase() : 'U'}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center">
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-3">
+              {user?.username ? user.username.substring(0, 2).toUpperCase() : 'U'}
+            </div>
+            <div>
+              <div className="text-sm font-medium text-white">{user?.username || 'User'}</div>
+              <div className="text-xs text-gray-300">{user?.role || 'User'}</div>
+            </div>
           </div>
-          <div>
-            <div className="text-sm font-medium text-white">{user?.username || 'User'}</div>
-            <div className="text-xs text-gray-300">{user?.role || 'User'}</div>
+          <div className="text-right">
+            <div className="text-sm font-medium text-white leading-tight">{timeString}</div>
+            <div className="text-[10px] text-gray-300 leading-tight">{dateString}</div>
           </div>
         </div>
         <button
