@@ -21,12 +21,35 @@ app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'plangrid-secret-key-
 _jwt_expires_hours = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES_HOURS', '24'))
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=_jwt_expires_hours)
 jwt = JWTManager(app)
-# Configure CORS for production deployment
-CORS(app, origins=[
-    "http://localhost:3000",  # Local development
-    "https://material-forecast-website.onrender.com",  # Production frontend
-    "https://material-forecast-website-be.onrender.com"  # Production backend (if needed)
-])
+# Configure CORS for production deployment - more permissive for debugging
+CORS(app, 
+     origins=[
+         "http://localhost:3000",  # Local development
+         "https://material-forecast-website.onrender.com",  # Production frontend
+         "https://material-forecast-website-be.onrender.com"  # Production backend (if needed)
+     ],
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
+
+# Manual CORS handler as fallback
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    allowed_origins = [
+        "http://localhost:3000",
+        "https://material-forecast-website.onrender.com",
+        "https://material-forecast-website-be.onrender.com"
+    ]
+    
+    if origin in allowed_origins:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    
+    return response
 
 # Initialize MongoDB
 def init_db():
