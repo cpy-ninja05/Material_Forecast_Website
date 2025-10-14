@@ -50,6 +50,16 @@ const AppContent = () => {
           <Route path="/om" element={<OperationsMaintenance />} />
           <Route path="/dispatch" element={<LoadDispatch />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {/* Catch-all route for 404s */}
+          <Route path="*" element={
+            <div className="flex items-center justify-center min-h-screen">
+              <div className="text-center">
+                <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">404</h1>
+                <p className="text-gray-600 dark:text-gray-400 mb-8">Page not found</p>
+                <Navigate to="/dashboard" replace />
+              </div>
+            </div>
+          } />
         </Routes>
       </main>
     </>
