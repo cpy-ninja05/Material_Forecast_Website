@@ -1,241 +1,59 @@
-# Material Forecast Backend Setup
+# Material Forecast Backend (Flask)
 
-## 🚀 Quick Start
+## 🚀 Overview
+- **Backend**: Flask (JWT auth, CORS)
+- **DB**: MongoDB (collections: `users`, `projects`, `forecasts`, `project_forecasts`, `inventory`, `orders`, `material_actuals`)
+- **ML artifacts**: `multi_xgb_model.joblib`, `feature_cols1.joblib`, `target_cols1.joblib`, `label_encoders.joblib`
+- **Data**: `powergrid_realistic_material_dataset1.csv`
+- **Frontend**: React + Vite (`frontend/`)
 
-### Prerequisites
-- **Node.js** (v14 or higher) - [Download here](https://nodejs.org/)
-- **MongoDB** - [Installation guide](https://docs.mongodb.com/manual/installation/)
+Default server: `http://localhost:5000`
 
-### Installation & Setup
+## 📦 Prerequisites
+- Python 3.12 (recommended)
+- MongoDB Community Server running locally
+- Node.js 18+ (for the React frontend)
 
-1. **Install MongoDB**
-   ```bash
-   # On macOS with Homebrew
-   brew tap mongodb/brew
-   brew install mongodb-community
-   brew services start mongodb-community
-   
-   # On Ubuntu
-   sudo apt-get install mongodb
-   sudo systemctl start mongod
-   
-   # On Windows
-   # Download from https://www.mongodb.com/try/download/community
-   # Run installer and start MongoDB service
-   ```
-
-2. **Start the Backend**
-   ```bash
-   # Navigate to backend directory
-   cd backend
-   
-   # Install dependencies
-   npm install
-   
-   # Start the server
-   npm start
-   
-   # Or use the startup script
-   # On Windows: double-click start.bat
-   # On macOS/Linux: ./start.sh
-   ```
-
-3. **Verify Setup**
-   - Backend will run on: `http://localhost:5000`
-   - MongoDB connection: `mongodb://localhost:27017/PLANGRID_DATA/material_forecast`
-   - Sample data will be automatically created on first run
-
-## 📊 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
-
-### Projects
-- `GET /api/projects` - Get all projects
-- `POST /api/projects` - Create new project
-- `PUT /api/projects/:id` - Update project
-- `DELETE /api/projects/:id` - Delete project
-
-### Suppliers
-- `GET /api/suppliers` - Get all suppliers
-- `POST /api/suppliers` - Create new supplier
-- `POST /api/suppliers/invite` - Invite supplier
-- `PUT /api/suppliers/:id/status` - Update supplier status
-
-### Materials
-- `GET /api/materials` - Get all materials
-- `POST /api/materials` - Create new material
-
-### Forecasting
-- `POST /api/forecast` - Generate material forecast
-
-### Analytics
-- `GET /api/analytics/overview` - Dashboard overview
-- `GET /api/analytics/materials` - Material analytics
-- `GET /api/analytics/projects` - Project analytics
-
-## 🗄️ Database Schema
-
-### Projects
-```javascript
-{
-  name: String,
-  description: String,
-  location: String,
-  towerType: String,
-  budget: Number,
-  actualCost: Number,
-  priority: String, // Low, Medium, High, Critical
-  status: String,   // Planning, In Progress, On Hold, Completed, Cancelled
-  startDate: Date,
-  endDate: Date,
-  progress: Number, // 0-100
-  assignedTeam: [String],
-  materials: [String],
-  suppliers: [String],
-  milestones: [Object]
-}
-```
-
-### Suppliers
-```javascript
-{
-  companyName: String,
-  contactName: String,
-  email: String,
-  phone: String,
-  address: String,
-  category: String,
-  specialties: [String],
-  website: String,
-  status: String, // Active, Pending, Suspended, Verified
-  rating: Number, // 0-5
-  projectsCompleted: Number,
-  totalValue: Number,
-  certifications: [String]
-}
-```
-
-### Materials
-```javascript
-{
-  name: String,
-  category: String,
-  unit: String,
-  predictedQty: Number,
-  currentStock: Number,
-  suggestedOrder: Number,
-  vendor: String,
-  priority: String // Low, Medium, High
-}
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-Create a `.env` file in the backend directory:
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/material_forecast
-JWT_SECRET=your-secret-key
-NODE_ENV=development
-```
-
-### MongoDB Connection
-The app connects to MongoDB at `mongodb://localhost:27017/PLANGRID_DATA/material_forecast` by default.
-
-## 📈 Sample Data
-
-The backend automatically creates sample data on first run:
-- 2 sample projects
-- 6 sample materials
-- 2 sample suppliers
-
-## 🐛 Troubleshooting
-
-### MongoDB Connection Issues
+## 🔧 Environment Variables
+Create a `.env` (or set OS env vars) before running the backend:
 ```bash
-# Check if MongoDB is running
-# On macOS/Linux
-ps aux | grep mongod
+# Mongo
+MONGO_URI=mongodb://localhost:27017/PLANGRID_DATA
 
-# On Windows
-tasklist | findstr mongod
+# JWT
+# You can override the in-code default `plangrid-secret-key-2025`
+JWT_SECRET_KEY=your-secure-secret
 
-# Start MongoDB if not running
-# On macOS
-brew services start mongodb-community
+# From repo root
+cd backend
 
-# On Ubuntu
-sudo systemctl start mongod
+# Create & activate virtualenv (Windows PowerShell)
+python -m venv venv
+./venv/Scripts/Activate.ps1
 
-# On Windows
-net start MongoDB
+# Install deps
+pip install -r requirements.txt
+
+# Ensure MongoDB is running locally, then start the API
+python app.py
+# Flask will bind 0.0.0.0:5000 in debug mode
 ```
 
-### Port Already in Use
+## 💻 Setup & Run (Frontend)
 ```bash
-# Kill process using port 5000
-# On macOS/Linux
-lsof -ti:5000 | xargs kill -9
-
-# On Windows
-netstat -ano | findstr :5000
-taskkill /PID <PID> /F
-```
-
-### Dependencies Issues
-```bash
-# Clear npm cache and reinstall
-npm cache clean --force
-rm -rf node_modules package-lock.json
+cd frontend
 npm install
+npm run dev
+# Vite dev server (defaults to http://localhost:5173)
 ```
 
-## 🚀 Production Deployment
-
-For production deployment:
-
-1. Set `NODE_ENV=production`
-2. Use a production MongoDB instance
-3. Set up proper JWT secrets
-4. Configure CORS for your domain
-5. Use PM2 for process management
-
-```bash
-# Install PM2
-npm install -g pm2
-
-# Start with PM2
-pm2 start app.js --name "material-forecast-api"
-pm2 save
-pm2 startup
-```
-
-## 📝 Development
-
-### Adding New Endpoints
-1. Define schema in `app.js`
-2. Add route handler
-3. Test with Postman or frontend
-4. Update this README
-
-### Database Migrations
-For schema changes, create migration scripts in a `migrations/` folder.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the ISC License.
-
-
-
-
+## 🗂️ Project Structure (key parts)
+- `backend/app.py` — Flask app, routes, Mongo init, ML inference
+- `backend/requirements.txt` — Python dependencies
+- `frontend/` — React + Vite app (Tailwind config present)
+- ML/data files at repo root:
+  - `multi_xgb_model.joblib`
+  - `feature_cols1.joblib`
+  - `target_cols1.joblib`
+  - `label_encoders.joblib`
+  - `powergrid_realistic_material_dataset1.csv`
