@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, LogIn, UserPlus, BarChart3, Calendar, FileText, IndianRupee, Shield } from 'lucide-react';
 import PlanGridLogo from '/PlanGrid.jpg';
-// Forgot password removed
+import ForgotPassword from './ForgotPassword';
 
 const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }) => {
   const [formData, setFormData] = useState({
@@ -441,9 +441,7 @@ const AuthPage = () => {
   return (
     <>
       {showForgotPassword ? (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-red-600">Password reset is currently disabled.</div>
-        </div>
+        <ForgotPassword onBackToLogin={() => setShowForgotPassword(false)} />
       ) : isLogin ? (
         <Login 
           onSwitchToRegister={() => setIsLogin(false)} 

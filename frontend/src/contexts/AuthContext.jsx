@@ -78,12 +78,56 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  // Forgot-password feature disabled
-  const forgotPassword = async () => ({ success: false, error: 'Feature disabled' });
+  // Forgot password methods
+  const forgotPassword = async (email) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const response = await axios.post(`${apiUrl}/api/forgot-password`, {
+        email
+      });
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Failed to send reset email' 
+      };
+    }
+  };
 
-  const resetPassword = async () => ({ success: false, error: 'Feature disabled' });
+  const resetPassword = async (token, newPassword) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const response = await axios.post(`${apiUrl}/api/reset-password`, {
+        token,
+        new_password: newPassword
+      });
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Failed to reset password' 
+      };
+    }
+  };
 
-  const verifyResetToken = async () => ({ success: false, error: 'Feature disabled' });
+  const verifyResetToken = async (token) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const response = await axios.post(`${apiUrl}/api/verify-reset-token`, {
+        token
+      });
+      return { 
+        success: response.data.valid, 
+        email: response.data.email,
+        error: response.data.error 
+      };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Failed to verify token' 
+      };
+    }
+  };
 
   const value = {
     user,

@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
 import pandas as pd
 import numpy as np
@@ -14,13 +15,24 @@ import certifi
 from dotenv import load_dotenv
 
 load_dotenv()  # load environment variables from .env if present
-from email_service import email_service
 app = Flask(__name__)
 # Config from environment
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'plangrid-secret-key-2025')
 _jwt_expires_hours = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES_HOURS', '24'))
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=_jwt_expires_hours)
+
+# Flask-Mail configuration
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', '')
+app.config['MAIL_MAX_EMAILS'] = int(os.getenv('MAIL_MAX_EMAILS', '100'))
+
 jwt = JWTManager(app)
+mail = Mail(app)
 # Configure CORS for production deployment - more permissive for debugging
 CORS(app, 
      origins=[
@@ -84,6 +96,7 @@ def init_db():
     projects_collection = db['projects']
     forecasts_collection = db['forecasts']
     project_forecasts_collection = db['project_forecasts']  # new consolidated schema
+    password_reset_tokens_collection = db['password_reset_tokens']
     inventory_collection = db['inventory']
     orders_collection = db['orders']
     material_actuals_collection = db['material_actuals']
@@ -103,11 +116,13 @@ def init_db():
         inventory_collection.create_index([('material_code', 1), ('warehouse', 1)], unique=True)
         orders_collection.create_index('order_id', unique=True)
         material_actuals_collection.create_index([('project_id', 1), ('month', 1)], unique=True)
+        password_reset_tokens_collection.create_index('token', unique=True)
+        password_reset_tokens_collection.create_index('created_at', expireAfterSeconds=3600)  # Auto-expire after 1 hour
         pass
     except errors.PyMongoError as e:
         print(f"Error creating indexes: {e}")
 
-    return client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection
+    return client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection, password_reset_tokens_collection
 
 # Load models and encoders
 def load_models():
@@ -131,7 +146,7 @@ def load_data():
         return None
 
 # Initialize
-client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection = init_db()
+client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection, password_reset_tokens_collection = init_db()
 model, feature_cols, target_cols, label_encoders = load_models()
 df = load_data()
 
@@ -212,20 +227,223 @@ def login():
 
 @app.route('/api/forgot-password', methods=['POST'])
 def forgot_password():
-    """Initiate password reset process"""
+    """Send password reset email using Flask-Mail"""
     data = request.get_json()
-    # Feature removed
-    return jsonify({'error': 'Feature disabled'}), 410
+    email = data.get('email')
     
-    # Unreachable
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+    
+    try:
+        # Find user by email (case-insensitive)
+        user = users_collection.find_one({'email': {'$regex': f'^{re.escape(email)}$', '$options': 'i'}})
+        if not user:
+            return jsonify({'error': 'Email not found'}), 404
+        
+        # Generate secure reset token
+        reset_token = secrets.token_urlsafe(32)
+        
+        # Store reset token in database with expiry
+        password_reset_tokens_collection.insert_one({
+            'token': reset_token,
+            'email': email,
+            'username': user['username'],
+            'created_at': datetime.now(timezone.utc),
+            'used': False
+        })
+        
+        # Send email using Flask-Mail
+        frontend_url = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
+        # Ensure URL doesn't end with slash and construct reset URL
+        frontend_url = frontend_url.rstrip('/')
+        reset_url = f"{frontend_url}/reset-password?token={reset_token}"
+        
+        msg = Message(
+            subject='Password Reset Request - PlanGrid',
+            recipients=[email],
+            sender=app.config['MAIL_DEFAULT_SENDER']
+        )
+        
+        msg.html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Password Reset - PlanGrid</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                    border-radius: 8px 8px 0 0;
+                }}
+                .content {{
+                    background: #f8fafc;
+                    padding: 30px;
+                    border-radius: 0 0 8px 8px;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: #2563eb;
+                    color: white;
+                    padding: 12px 24px;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    margin: 20px 0;
+                    font-weight: bold;
+                    border: 2px solid #2563eb;
+                    transition: all 0.3s ease;
+                }}
+                .button:hover {{
+                    background: #1d4ed8;
+                    border-color: #1d4ed8;
+                }}
+                .warning {{
+                    background: #fef3c7;
+                    border: 1px solid #f59e0b;
+                    color: #92400e;
+                    padding: 15px;
+                    border-radius: 6px;
+                    margin: 20px 0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>🔐 Password Reset Request</h1>
+                <p>PlanGrid Material Forecast Portal</p>
+            </div>
+            
+            <div class="content">
+                <h2>Hello {user['username']}!</h2>
+                
+                <p>You have requested to reset your password for your PlanGrid account.</p>
+                
+                <p>To reset your password, please click the button below:</p>
+                
+                <div style="text-align: center;">
+                    <a href="{reset_url}" class="button">Reset My Password</a>
+                </div>
+                
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="word-break: break-all; background: #e2e8f0; padding: 10px; border-radius: 4px; font-family: monospace;">
+                    {reset_url}
+                </p>
+                
+                <div class="warning">
+                    <strong>⚠️ Important Security Information:</strong>
+                    <ul>
+                        <li>This link will expire in <strong>1 hour</strong></li>
+                        <li>The link can only be used <strong>once</strong></li>
+                        <li>If you didn't request this reset, please ignore this email</li>
+                    </ul>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg.body = f"""
+        Hello {user['username']},
+        
+        You have requested to reset your password for your PlanGrid account.
+        
+        To reset your password, please click on the following link:
+        {reset_url}
+        
+        This link will expire in 1 hour for security reasons.
+        
+        If you did not request this password reset, please ignore this email.
+        
+        Best regards,
+        PlanGrid Team
+        """
+        
+        mail.send(msg)
+        return jsonify({'message': 'Password reset email sent successfully'}), 200
+        
+    except Exception as e:
+        print(f"Error sending password reset email: {e}")
+        return jsonify({'error': 'Failed to send reset email. Please try again later.'}), 500
 
 @app.route('/api/reset-password', methods=['POST'])
 def reset_password():
-    return jsonify({'error': 'Feature disabled'}), 410
+    """Reset password using token"""
+    data = request.get_json()
+    token = data.get('token')
+    new_password = data.get('new_password')
+    
+    if not token or not new_password:
+        return jsonify({'error': 'Token and new password are required'}), 400
+    
+    if len(new_password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+    
+    try:
+        # Find valid reset token
+        reset_record = password_reset_tokens_collection.find_one({
+            'token': token,
+            'used': False,
+            'created_at': {'$gte': datetime.now(timezone.utc) - timedelta(hours=1)}
+        })
+        
+        if not reset_record:
+            return jsonify({'error': 'Invalid or expired reset token'}), 400
+        
+        # Update user password
+        password_hash = generate_password_hash(new_password)
+        users_collection.update_one(
+            {'email': reset_record['email']},
+            {'$set': {'password_hash': password_hash}}
+        )
+        
+        # Mark token as used
+        password_reset_tokens_collection.update_one(
+            {'token': token},
+            {'$set': {'used': True}}
+        )
+        
+        return jsonify({'message': 'Password reset successfully'}), 200
+        
+    except Exception as e:
+        print(f"Error resetting password: {e}")
+        return jsonify({'error': 'Failed to reset password. Please try again.'}), 500
 
 @app.route('/api/verify-reset-token', methods=['POST'])
 def verify_reset_token():
-    return jsonify({'error': 'Feature disabled'}), 410
+    """Verify if reset token is valid"""
+    data = request.get_json()
+    token = data.get('token')
+    
+    if not token:
+        return jsonify({'error': 'Token is required'}), 400
+    
+    try:
+        # Check if token exists and is valid
+        reset_record = password_reset_tokens_collection.find_one({
+            'token': token,
+            'used': False,
+            'created_at': {'$gte': datetime.now(timezone.utc) - timedelta(hours=1)}
+        })
+        
+        if reset_record:
+            return jsonify({'valid': True, 'email': reset_record['email']}), 200
+        else:
+            return jsonify({'valid': False, 'error': 'Invalid or expired token'}), 400
+            
+    except Exception as e:
+        print(f"Error verifying token: {e}")
+        return jsonify({'error': 'Failed to verify token'}), 500
 
 # Analytics routes
 @app.route('/api/analytics/overview', methods=['GET'])
