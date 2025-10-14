@@ -10,6 +10,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 import re
 from pymongo import MongoClient, errors
+import certifi
 from dotenv import load_dotenv
 
 load_dotenv()  # load environment variables from .env if present
@@ -32,7 +33,12 @@ def init_db():
     mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/PLANGRID_DATA')
     db_name = os.getenv('MONGO_DB', 'material_forecast')
 
-    client = MongoClient(mongo_uri)
+    # Use CA bundle for Atlas TLS
+    try:
+        ca = certifi.where()
+        client = MongoClient(mongo_uri, tls=True, tlsCAFile=ca)
+    except Exception:
+        client = MongoClient(mongo_uri)
     db = client[db_name]
 
     users_collection = db['users']
