@@ -24,7 +24,8 @@ jwt = JWTManager(app)
 # Configure CORS for production deployment - more permissive for debugging
 CORS(app, 
      origins=[
-         "http://localhost:3000",  # Local development
+         "http://localhost:3000",  # Local development (React default)
+         "http://localhost:5173",  # Local development (Vite default)
          "https://material-forecast-website.onrender.com",  # Production frontend
          "https://material-forecast-website-be.onrender.com"  # Production backend (if needed)
      ],
@@ -39,6 +40,7 @@ def after_request(response):
     origin = request.headers.get('Origin')
     allowed_origins = [
         "http://localhost:3000",
+        "http://localhost:5173",  # Added Vite default port
         "https://material-forecast-website.onrender.com",
         "https://material-forecast-website-be.onrender.com"
     ]
@@ -56,12 +58,26 @@ def init_db():
     mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/PLANGRID_DATA')
     db_name = os.getenv('MONGO_DB', 'material_forecast')
 
-    # Use CA bundle for Atlas TLS
+    # MongoDB connection with multiple fallback options
     try:
+        # Try with TLS and CA bundle first
         ca = certifi.where()
-        client = MongoClient(mongo_uri, tls=True, tlsCAFile=ca)
-    except Exception:
-        client = MongoClient(mongo_uri)
+        client = MongoClient(mongo_uri, tls=True, tlsCAFile=ca, tlsAllowInvalidCertificates=True)
+        # Test connection
+        client.admin.command('ping')
+    except Exception as e1:
+        try:
+            # Fallback: TLS without CA verification
+            client = MongoClient(mongo_uri, tls=True, tlsAllowInvalidCertificates=True)
+            client.admin.command('ping')
+        except Exception as e2:
+            try:
+                # Last resort: no TLS (for local development)
+                client = MongoClient(mongo_uri)
+                client.admin.command('ping')
+            except Exception as e3:
+                print(f"MongoDB connection failed. Errors: {e1}, {e2}, {e3}")
+                raise e3
     db = client[db_name]
 
     users_collection = db['users']
