@@ -1374,5 +1374,55 @@ def get_materials():
     except Exception as e:
         return jsonify({'error': f'Failed to fetch materials: {str(e)}'}), 500
 
+# Warehouse Management Endpoints
+@app.route('/api/warehouses', methods=['GET'])
+@jwt_required()
+def get_warehouses():
+    try:
+        # Get unique warehouses from inventory
+        warehouses = inventory_collection.distinct('warehouse')
+        warehouses = [w for w in warehouses if w]  # Filter out None/empty values
+        return jsonify(warehouses)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/inventory/<material_code>', methods=['DELETE'])
+@jwt_required()
+def delete_inventory_item(material_code):
+    username = get_jwt_identity()
+    
+    try:
+        result = inventory_collection.delete_one({'material_code': material_code})
+        
+        if result.deleted_count == 0:
+            return jsonify({'error': 'Inventory item not found'}), 404
+            
+        return jsonify({
+            'message': 'Inventory item deleted successfully',
+            'material_code': material_code,
+            'deleted_by': username,
+            'deleted_at': datetime.now(timezone.utc).isoformat()
+        }), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/inventory/delete-all', methods=['DELETE'])
+@jwt_required()
+def delete_all_inventory():
+    username = get_jwt_identity()
+    
+    try:
+        # Delete all inventory items
+        result = inventory_collection.delete_many({})
+        
+        return jsonify({
+            'message': 'All inventory items deleted successfully',
+            'deleted_count': result.deleted_count,
+            'deleted_by': username,
+            'deleted_at': datetime.now(timezone.utc).isoformat()
+        }), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
