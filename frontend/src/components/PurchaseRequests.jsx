@@ -56,7 +56,7 @@ const PurchaseRequests = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/orders`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -86,7 +86,7 @@ const PurchaseRequests = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/materials', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/materials`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -107,7 +107,7 @@ const PurchaseRequests = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/projects', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/projects`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -128,7 +128,7 @@ const PurchaseRequests = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/dealers', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dealers`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -157,7 +157,7 @@ const PurchaseRequests = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/dealers', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dealers`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -354,7 +354,7 @@ const PurchaseRequests = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/orders/${selectedOrder.order_id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/orders/${selectedOrder.order_id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -403,7 +403,7 @@ const PurchaseRequests = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/orders/${selectedOrder.order_id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/orders/${selectedOrder.order_id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -443,7 +443,7 @@ const PurchaseRequests = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/orders`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

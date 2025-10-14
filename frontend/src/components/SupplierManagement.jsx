@@ -68,9 +68,9 @@ const SupplierManagement = () => {
     setLoading(true);
     try {
       // Fetch suppliers
-      const suppliersResponse = await fetch('http://localhost:5000/api/suppliers');
-      if (suppliersResponse.ok) {
-        const suppliersData = await suppliersResponse.json();
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/suppliers`);
+      if (res.ok) {
+        const suppliersData = await res.json();
         setSuppliers(Array.isArray(suppliersData) ? suppliersData : []);
       } else {
         setSuppliers([]);

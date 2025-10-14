@@ -10,7 +10,7 @@ const Orders = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/purchase-orders', {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/purchase-orders`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (!res.ok) throw new Error('Failed to load');
@@ -29,7 +29,7 @@ const Orders = () => {
     setCreating(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/purchase-orders', {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/purchase-orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

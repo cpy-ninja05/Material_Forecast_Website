@@ -18,8 +18,8 @@ const OperationsMaintenance = () => {
     setLoading(true);
     try {
       const [a, o] = await Promise.all([
-        axios.get('http://localhost:5000/api/assets'),
-        axios.get('http://localhost:5000/api/outages')
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/assets`),
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/outages`)
       ]);
       setAssets(a.data);
       setOutages(o.data);
@@ -35,7 +35,7 @@ const OperationsMaintenance = () => {
   const submitAsset = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/assets', assetForm);
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/assets`, assetForm);
       setAssetForm({ project_id: '', asset_type: 'tower', name: '', status: 'planned', location: '', voltage_kv: 132, specs: '' });
       fetchAll();
     } catch (e) {
@@ -46,7 +46,7 @@ const OperationsMaintenance = () => {
   const submitOutage = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/outages', outageForm);
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/outages`, outageForm);
       setOutageForm({ asset_id: '', start_time: '', end_time: '', cause: '', severity: 'low', remarks: '' });
       fetchAll();
     } catch (e) {

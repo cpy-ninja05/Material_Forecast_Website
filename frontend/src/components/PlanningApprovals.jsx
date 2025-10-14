@@ -61,7 +61,7 @@ const PlanningApprovals = () => {
     formData.append('file', file);
     setUploading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/upload/permit', formData, {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/upload/permit`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setPermitForm(prev => ({ ...prev, doc_url: res.data.url }));

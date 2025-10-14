@@ -38,7 +38,7 @@ const SupplierDashboard = () => {
     setLoading(true);
     try {
       // In a real app, this would fetch the current supplier's data
-      const response = await fetch('http://localhost:5000/api/supplier/dashboard');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/supplier/dashboard`);
       if (response.ok) {
         const data = await response.json();
         setSupplier(data.supplier);

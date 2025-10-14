@@ -35,9 +35,9 @@ const MaterialsPage = () => {
     setLoading(true);
     try {
       const [materialsRes, trendsRes, projectMaterialsRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/analytics/materials'),
-        axios.get('http://localhost:5000/api/analytics/materials'),
-        axios.get('http://localhost:5000/api/analytics/project-materials')
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/analytics/materials`),
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/analytics/materials`),
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/analytics/project-materials`)
       ]);
 
       // Process materials data for visualization

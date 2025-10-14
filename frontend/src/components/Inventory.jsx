@@ -171,7 +171,7 @@ const Inventory = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/inventory', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/inventory`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -189,7 +189,7 @@ const Inventory = () => {
         if (!skipAutoInit) {
           await initializeInventory();
           // Reload inventory after initialization
-          const reloadResponse = await fetch('http://localhost:5000/api/inventory', {
+          const reloadResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/inventory`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
@@ -223,7 +223,7 @@ const Inventory = () => {
         throw new Error('Please login to initialize inventory');
       }
 
-      const response = await fetch('http://localhost:5000/api/inventory/initialize', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/inventory/initialize`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -414,7 +414,7 @@ const Inventory = () => {
         quantity: calculatedQuantity
       };
 
-      const response = await fetch(`http://localhost:5000/api/inventory/${editingItem.material_code}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/inventory/${editingItem.material_code}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -513,7 +513,7 @@ const Inventory = () => {
         quantity: (addForm.available || 0) + (addForm.reserved || 0) + (addForm.in_transit || 0)
       };
 
-      const response = await fetch('http://localhost:5000/api/inventory', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/inventory`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -561,7 +561,7 @@ const Inventory = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/inventory/${itemToDelete.material_code}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/inventory/${itemToDelete.material_code}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -603,7 +603,7 @@ const Inventory = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/inventory/delete-all', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/inventory/delete-all`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

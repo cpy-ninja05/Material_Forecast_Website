@@ -11,7 +11,7 @@ const Dealers = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/dealers', {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dealers`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -33,7 +33,7 @@ const Dealers = () => {
     setCreating(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/dealers', {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dealers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,7 +57,7 @@ const Dealers = () => {
     setError('');
     try {
       const payload = { ...priceForm, dealer_id: Number(priceForm.dealer_id), price: Number(priceForm.price) };
-      const res = await fetch('http://localhost:5000/api/price-lists', {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/price-lists`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -25,7 +25,7 @@ const Approvals = () => {
 
   const decide = async (requestId, decision) => {
     try {
-      const res = await fetch('http://localhost:5000/api/approvals/decision', {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/approvals/decision`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

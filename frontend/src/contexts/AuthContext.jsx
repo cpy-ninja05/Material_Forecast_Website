@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       // Verify token and get user info with role
-      axios.get('http://localhost:5000/api/me')
+      axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/me`)
         .then((res) => {
           setUser({ username: res.data.username, role: res.data.role, email: res.data.email });
         })
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      const response = await axios.post('http://localhost:5000/api/login', {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/login`, {
         username,
         password
       });
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (username, email, password) => {
     try {
-      await axios.post('http://localhost:5000/api/register', {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/register`, {
         username,
         email,
         password

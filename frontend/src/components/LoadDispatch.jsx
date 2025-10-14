@@ -14,8 +14,8 @@ const LoadDispatch = () => {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const r = await axios.get('http://localhost:5000/api/dispatch');
-      setLogs(r.data);
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/dispatch`);
+      setLogs(res.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -28,7 +28,7 @@ const LoadDispatch = () => {
   const submit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/dispatch', form);
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/dispatch`, form);
       setForm({ timestamp: '', region: 'North', demand_mw: '', supply_mw: '', frequency_hz: 50.0, voltage_kv: 220, remarks: '' });
       fetchAll();
     } catch (e) {
