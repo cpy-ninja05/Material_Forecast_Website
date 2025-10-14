@@ -650,13 +650,13 @@ const Inventory = () => {
   const statistics = getStatistics();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="px-8 py-8">
           <div className="flex flex-col items-start">
-            <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
-            <p className="text-gray-600 mt-2">Track material stock levels, monitor consumption, and manage warehouse operations</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Inventory Management</h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">Track material stock levels, monitor consumption, and manage warehouse operations</p>
           </div>
         </div>
       </div>
@@ -713,7 +713,7 @@ const Inventory = () => {
             <div className="ml-auto flex gap-2">
               <button 
                 onClick={handleAddItem}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 flex items-center gap-2 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 Add Item
@@ -721,7 +721,7 @@ const Inventory = () => {
               {inventoryItems.length === 0 ? (
                 <button 
                   onClick={initializeInventory}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center gap-2"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 flex items-center gap-2 transition-colors"
                 >
                   <Package className="h-4 w-4" />
                   Initialize Inventory
@@ -729,7 +729,7 @@ const Inventory = () => {
               ) : (
                 <button 
                   onClick={handleDeleteAllItems}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex items-center gap-2"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 flex items-center gap-2 transition-colors"
                 >
                   <Trash2 className="h-4 w-4" />
                   Delete All
@@ -738,7 +738,7 @@ const Inventory = () => {
               <button 
                 onClick={() => loadInventory(true)}
                 disabled={loading}
-                className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 flex items-center gap-2 disabled:opacity-50 transition-colors"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -812,8 +812,8 @@ const Inventory = () => {
         {/* Loading State */}
         {loading && (
           <div className="flex justify-center items-center py-12">
-            <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">Loading inventory...</span>
+            <RefreshCw className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
+            <span className="ml-2 text-gray-600 dark:text-gray-300">Loading inventory...</span>
           </div>
         )}
 
@@ -822,9 +822,9 @@ const Inventory = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredItems.length === 0 ? (
               <div className="col-span-full text-center py-12">
-                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No inventory items found</h3>
-                <p className="text-gray-600">
+                <Package className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No inventory items found</h3>
+                <p className="text-gray-600 dark:text-gray-400">
                   {inventoryItems.length === 0 
                     ? "No inventory items available. Please check back later."
                     : "No items match your current filters. Try adjusting your search criteria."
@@ -891,21 +891,21 @@ const Inventory = () => {
                     <div className="flex gap-2">
                       <button 
                         onClick={() => handleEditItem(item)}
-                        className="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                        className="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center gap-1"
                       >
                         <Edit className="h-3 w-3" />
                         Edit
                       </button>
                       <button 
                         onClick={() => handleViewItem(item)}
-                        className="flex-1 px-3 py-2 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors flex items-center justify-center gap-1"
+                        className="flex-1 px-3 py-2 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 dark:text-green-400 dark:bg-green-900/20 dark:hover:bg-green-900/30 transition-colors flex items-center justify-center gap-1"
                       >
                         <Eye className="h-3 w-3" />
                         View
                       </button>
                       <button 
                         onClick={() => handleDeleteItem(item)}
-                        className="flex-1 px-3 py-2 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                        className="flex-1 px-3 py-2 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 dark:text-red-400 dark:bg-red-900/20 dark:hover:bg-red-900/30 transition-colors flex items-center justify-center gap-1"
                       >
                         <Trash2 className="h-3 w-3" />
                         Delete
@@ -922,13 +922,13 @@ const Inventory = () => {
       {/* Edit Modal */}
       {showEditModal && editingItem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Edit Inventory Item</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Edit Inventory Item</h3>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -1084,14 +1084,14 @@ const Inventory = () => {
               <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveItem}
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
                 >
                   {saving ? (
                     <>
@@ -1112,13 +1112,13 @@ const Inventory = () => {
       )}
       {showViewModal && viewingItem && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Inventory Item Details</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Inventory Item Details</h3>
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -1277,7 +1277,7 @@ const Inventory = () => {
               <div className="flex justify-end mt-8 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 transition-colors"
                 >
                   Close
                 </button>
@@ -1290,13 +1290,13 @@ const Inventory = () => {
       {/* Add New Item Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Add New Inventory Item</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Add New Inventory Item</h3>
                 <button
                   onClick={() => setShowAddModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -1463,14 +1463,14 @@ const Inventory = () => {
               <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveNewItem}
                   disabled={adding}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
                 >
                   {adding ? (
                     <>
@@ -1493,13 +1493,13 @@ const Inventory = () => {
       {/* Individual Delete Confirmation Modal */}
       {showDeleteModal && itemToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Delete Item</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Delete Item</h3>
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -1529,14 +1529,14 @@ const Inventory = () => {
               <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDeleteItem}
                   disabled={deletingItem}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
                 >
                   {deletingItem ? (
                     <>
@@ -1559,13 +1559,13 @@ const Inventory = () => {
       {/* Delete All Confirmation Modal */}
       {showDeleteAllModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Delete All Items</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Delete All Items</h3>
                 <button
                   onClick={() => setShowDeleteAllModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -1593,14 +1593,14 @@ const Inventory = () => {
               <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setShowDeleteAllModal(false)}
-                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDeleteAll}
                   disabled={deleting}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
                 >
                   {deleting ? (
                     <>

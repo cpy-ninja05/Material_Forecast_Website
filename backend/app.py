@@ -11,8 +11,12 @@ import secrets
 from datetime import datetime, timedelta, timezone
 import re
 from pymongo import MongoClient, errors
+from bson import ObjectId
 import certifi
 from dotenv import load_dotenv
+import threading
+import time
+from collections import defaultdict
 
 load_dotenv()  # load environment variables from .env if present
 app = Flask(__name__)
@@ -100,6 +104,9 @@ def init_db():
     inventory_collection = db['inventory']
     orders_collection = db['orders']
     material_actuals_collection = db['material_actuals']
+    teams_collection = db['teams']
+    team_invitations_collection = db['team_invitations']
+    notifications_collection = db['notifications']
     # password reset collection removed
 
     # Ensure unique indexes for username and email
@@ -118,11 +125,21 @@ def init_db():
         material_actuals_collection.create_index([('project_id', 1), ('month', 1)], unique=True)
         password_reset_tokens_collection.create_index('token', unique=True)
         password_reset_tokens_collection.create_index('created_at', expireAfterSeconds=3600)  # Auto-expire after 1 hour
+        
+        # Team collaboration indexes
+        teams_collection.create_index('team_id', unique=True)
+        teams_collection.create_index('members.username')
+        teams_collection.create_index('created_by')
+        team_invitations_collection.create_index('invitation_token', unique=True)
+        team_invitations_collection.create_index('email')
+        team_invitations_collection.create_index('created_at', expireAfterSeconds=604800)  # Auto-expire after 7 days
+        notifications_collection.create_index('user_id')
+        notifications_collection.create_index('created_at')
         pass
     except errors.PyMongoError as e:
         print(f"Error creating indexes: {e}")
 
-    return client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection, password_reset_tokens_collection
+    return client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection, password_reset_tokens_collection, teams_collection, team_invitations_collection, notifications_collection
 
 # Load models and encoders
 def load_models():
@@ -146,7 +163,7 @@ def load_data():
         return None
 
 # Initialize
-client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection, password_reset_tokens_collection = init_db()
+client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection, password_reset_tokens_collection, teams_collection, team_invitations_collection, notifications_collection = init_db()
 model, feature_cols, target_cols, label_encoders = load_models()
 df = load_data()
 
@@ -449,35 +466,70 @@ def verify_reset_token():
 @app.route('/api/analytics/overview', methods=['GET'])
 @jwt_required()
 def analytics_overview():
-    if df is None:
-        return jsonify({'error': 'Data not available'}), 500
+    username = get_jwt_identity()
     
-    # Basic statistics
-    total_projects = int(df['project_id'].nunique())
-    total_budget = float(df.groupby('project_id')['budget'].first().sum())
-    avg_budget = float(df.groupby('project_id')['budget'].first().mean())
-    
-    # Material totals
-    material_totals = {}
-    for col in target_cols:
-        material_totals[col] = float(df[col].sum())
-    
-    # Project distribution by location
-    location_dist = df.groupby('project_id')['project_location'].first().value_counts().to_dict()
-    location_dist = {str(k): int(v) for k, v in location_dist.items()}
-    
-    # Risk distribution
-    risk_dist = df.groupby('project_id')['region_risk_flag'].first().value_counts().to_dict()
-    risk_dist = {str(k): int(v) for k, v in risk_dist.items()}
-    
-    return jsonify({
-        'total_projects': total_projects,
-        'total_budget': total_budget,
-        'avg_budget': avg_budget,
-        'material_totals': material_totals,
-        'location_distribution': location_dist,
-        'risk_distribution': risk_dist
-    })
+    try:
+        # Get user's teams
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        
+        # Get projects accessible to user (own projects + team projects)
+        accessible_projects_query = {
+            '$or': [
+                {'created_by': username},
+                {'team_id': {'$in': team_ids}}
+            ]
+        }
+        
+        # Get user's own project data + team project data
+        user_projects = list(projects_collection.find(accessible_projects_query, {'_id': 0}))
+        
+        if not user_projects:
+            return jsonify({
+                'total_projects': 0,
+                'total_budget': 0,
+                'avg_budget': 0,
+                'material_totals': {},
+                'location_distribution': {},
+                'risk_distribution': {}
+            })
+        
+        # Calculate statistics from user's projects + team projects
+        total_projects = len(user_projects)
+        total_budget = sum(float(p.get('cost', 0)) for p in user_projects if p.get('cost'))
+        avg_budget = total_budget / total_projects if total_projects > 0 else 0
+        
+        # Location distribution
+        location_dist = {}
+        for project in user_projects:
+            location = project.get('location', 'Unknown')
+            location_dist[location] = location_dist.get(location, 0) + 1
+        
+        # Risk distribution (using project status as risk indicator)
+        risk_dist = {}
+        for project in user_projects:
+            status = project.get('status', 'Unknown')
+            risk_dist[status] = risk_dist.get(status, 0) + 1
+        
+        # Material totals (placeholder - would need actual material data)
+        material_totals = {}
+        if target_cols:
+            for col in target_cols:
+                material_totals[col] = 0.0  # Would need actual material consumption data
+        
+        return jsonify({
+            'total_projects': total_projects,
+            'total_budget': total_budget,
+            'avg_budget': avg_budget,
+            'material_totals': material_totals,
+            'location_distribution': location_dist,
+            'risk_distribution': risk_dist
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to get analytics overview: {str(e)}'}), 500
 
 @app.route('/api/analytics/materials', methods=['GET'])
 @jwt_required()
@@ -696,7 +748,25 @@ def forecast():
 @jwt_required()
 def get_projects():
     try:
-        projects = list(projects_collection.find({}, {'_id': 0}))
+        username = get_jwt_identity()
+        
+        # Get user's teams
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        
+        # Get projects created by user OR projects assigned to user's teams
+        query = {
+            '$or': [
+                {'created_by': username},  # User's own projects
+                {'team_id': {'$in': team_ids}}  # Projects from user's teams
+            ]
+        }
+        
+        projects = list(projects_collection.find(query, {'_id': 0}).sort('created_at', -1))
+        
         # Convert ObjectId to string for any remaining _id fields
         for project in projects:
             if '_id' in project:
@@ -726,6 +796,7 @@ def create_project():
             'end_date': data.get('end_date'),
             'project_size_km': data.get('project_size_km'),
             'description': data.get('description'),
+            'team_id': data.get('team_id'),  # Assign team to project
             'created_by': username,
             'created_at': datetime.now(timezone.utc),
             'updated_at': datetime.now(timezone.utc)
@@ -733,6 +804,75 @@ def create_project():
         
         result = projects_collection.insert_one(project_data)
         project_data['_id'] = str(result.inserted_id)
+        
+        # Auto-create team entry if team_id is provided
+        if data.get('team_id'):
+            team_name = f"{data.get('name')}-Team"
+            team_description = f"Team for {data.get('name')} project"
+            
+            # Check if team already exists
+            existing_team = teams_collection.find_one({'team_id': data.get('team_id')})
+            
+            if not existing_team:
+                # Create new team entry
+                team_data = {
+                    'team_id': data.get('team_id'),
+                    'name': team_name,
+                    'description': team_description,
+                    'project_id': project_data['project_id'],  # Link to project
+                    'project_name': data.get('name'),
+                    'owner': username,
+                    'members': [
+                        {
+                            'username': username,
+                            'role': 'owner',
+                            'joined_at': datetime.now(timezone.utc)
+                        }
+                    ],
+                    'created_at': datetime.now(timezone.utc),
+                    'updated_at': datetime.now(timezone.utc)
+                }
+                
+                teams_collection.insert_one(team_data)
+                print(f"Auto-created team: {team_name} for project: {data.get('name')}")
+                
+                # Notify team members of new project
+                update_manager.notify_team_update(
+                    data.get('team_id'),
+                    'project_created',
+                    {
+                        'project_name': data.get('name'),
+                        'project_id': project_data['project_id'],
+                        'created_by': username,
+                        'status': data.get('status', 'PLANNED')
+                    }
+                )
+            else:
+                # Update existing team with project info
+                teams_collection.update_one(
+                    {'team_id': data.get('team_id')},
+                    {
+                        '$set': {
+                            'project_id': project_data['project_id'],
+                            'project_name': data.get('name'),
+                            'updated_at': datetime.now(timezone.utc)
+                        }
+                    }
+                )
+                print(f"Updated existing team with project info: {data.get('name')}")
+                
+                # Notify team members of project assignment
+                update_manager.notify_team_update(
+                    data.get('team_id'),
+                    'project_assigned',
+                    {
+                        'project_name': data.get('name'),
+                        'project_id': project_data['project_id'],
+                        'assigned_by': username,
+                        'status': data.get('status', 'PLANNED')
+                    }
+                )
+        
         return jsonify(project_data), 201
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
@@ -779,13 +919,150 @@ def update_project(project_id):
 @app.route('/api/projects/<project_id>', methods=['DELETE'])
 @jwt_required()
 def delete_project(project_id):
+    username = get_jwt_identity()
+    
     try:
-        result = projects_collection.delete_one({'project_id': project_id})
+        # First get the project to check ownership and get team_id
+        project = projects_collection.find_one({
+            'project_id': project_id,
+            'created_by': username
+        })
+        
+        if not project:
+            return jsonify({'error': 'Project not found or access denied'}), 404
+        
+        # Delete the project
+        result = projects_collection.delete_one({
+            'project_id': project_id,
+            'created_by': username
+        })
         
         if result.deleted_count == 0:
-            return jsonify({'error': 'Project not found'}), 404
-            
+            return jsonify({'error': 'Project not found or access denied'}), 404
+        
+        # Auto-delete associated team if it exists
+        if project.get('team_id'):
+            team_result = teams_collection.delete_one({'team_id': project['team_id']})
+            if team_result.deleted_count > 0:
+                print(f"Auto-deleted team {project['team_id']} for deleted project {project_id}")
+        
         return jsonify({'message': 'Project deleted successfully'}), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/projects/<project_id>/details', methods=['GET'])
+@jwt_required()
+def get_project_details(project_id):
+    """Get project details including team members"""
+    username = get_jwt_identity()
+    
+    try:
+        # Get user's teams
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        
+        # Get project details - user can access if they created it OR if it's assigned to their team
+        query = {
+            'project_id': project_id,
+            '$or': [
+                {'created_by': username},  # User's own projects
+                {'team_id': {'$in': team_ids}}  # Projects from user's teams
+            ]
+        }
+        
+        project = projects_collection.find_one(query, {'_id': 0})
+        
+        if not project:
+            return jsonify({'error': 'Project not found or access denied'}), 404
+        
+        # Get team members if project has a team
+        team_members = []
+        if project.get('team_id'):
+            team = teams_collection.find_one({'team_id': project['team_id']}, {'_id': 0})
+            if team:
+                team_members = team.get('members', [])
+        
+        # Combine project details with team members
+        project_details = {
+            **project,
+            'team_members': team_members,
+            'team_info': {
+                'team_id': project.get('team_id'),
+                'has_team': bool(project.get('team_id')),
+                'member_count': len(team_members)
+            }
+        }
+        
+        return jsonify(project_details), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/teams/create-for-existing-projects', methods=['POST'])
+@jwt_required()
+def create_teams_for_existing_projects():
+    """Create teams for existing projects that don't have teams yet"""
+    username = get_jwt_identity()
+    
+    try:
+        # Get all projects created by the user that don't have teams
+        projects_without_teams = list(projects_collection.find({
+            'created_by': username,
+            'team_id': {'$exists': False}
+        }))
+        
+        created_teams = []
+        
+        for project in projects_without_teams:
+            # Generate team_id based on project
+            team_id = f"TEAM_{project['project_id']}"
+            team_name = f"{project['name']}-Team"
+            team_description = f"Team for {project['name']} project"
+            
+            # Check if team already exists
+            existing_team = teams_collection.find_one({'team_id': team_id})
+            
+            if not existing_team:
+                # Create new team
+                team_data = {
+                    'team_id': team_id,
+                    'name': team_name,
+                    'description': team_description,
+                    'project_id': project['project_id'],
+                    'project_name': project['name'],
+                    'owner': username,
+                    'members': [
+                        {
+                            'username': username,
+                            'role': 'owner',
+                            'joined_at': datetime.now(timezone.utc)
+                        }
+                    ],
+                    'created_at': datetime.now(timezone.utc),
+                    'updated_at': datetime.now(timezone.utc)
+                }
+                
+                teams_collection.insert_one(team_data)
+                
+                # Update project with team_id
+                projects_collection.update_one(
+                    {'project_id': project['project_id']},
+                    {'$set': {'team_id': team_id}}
+                )
+                
+                created_teams.append({
+                    'project_name': project['name'],
+                    'team_name': team_name,
+                    'team_id': team_id
+                })
+        
+        return jsonify({
+            'message': f'Created {len(created_teams)} teams for existing projects',
+            'created_teams': created_teams
+        }), 200
+        
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
@@ -794,7 +1071,30 @@ def delete_project(project_id):
 @jwt_required()
 def get_forecasts():
     try:
-        forecasts = list(forecasts_collection.find({}, {'_id': 0}).sort('created_at', -1))
+        username = get_jwt_identity()
+        
+        # Get user's teams
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        
+        # Get projects accessible to user
+        accessible_projects = list(projects_collection.find({
+            '$or': [
+                {'created_by': username},
+                {'team_id': {'$in': team_ids}}
+            ]
+        }, {'project_id': 1, '_id': 0}))
+        
+        project_ids = [project['project_id'] for project in accessible_projects]
+        
+        # Get forecasts for accessible projects
+        forecasts = list(forecasts_collection.find({
+            'project_id': {'$in': project_ids}
+        }, {'_id': 0}).sort('created_at', -1))
+        
         return jsonify(forecasts)
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
@@ -803,11 +1103,33 @@ def get_forecasts():
 @jwt_required()
 def get_dashboard_metrics():
     try:
-        # Get total projects count
-        total_projects = projects_collection.count_documents({})
+        username = get_jwt_identity()
+        print(f"Getting dashboard metrics for user: {username}")
         
-        # Get active projects count (status = 'IN PROGRESS')
-        active_projects = projects_collection.count_documents({'status': 'IN PROGRESS'})
+        # Get user's teams
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        print(f"User {username} is in teams: {team_ids}")
+        
+        # Get projects accessible to user (own projects + team projects)
+        accessible_projects_query = {
+            '$or': [
+                {'created_by': username},
+                {'team_id': {'$in': team_ids}}
+            ]
+        }
+        
+        # Get total projects count (team-based)
+        total_projects = projects_collection.count_documents(accessible_projects_query)
+        print(f"Total accessible projects for {username}: {total_projects}")
+        
+        # Get active projects count (team-based)
+        active_query = {**accessible_projects_query, 'status': 'IN PROGRESS'}
+        active_projects = projects_collection.count_documents(active_query)
+        print(f"Active projects for {username}: {active_projects}")
         
         # Calculate forecast accuracy from stored actual values (new schema)
         raw = list(project_forecasts_collection.find({}))
@@ -856,21 +1178,32 @@ def get_dashboard_metrics():
             forecast_accuracy = 0.0
             print("No forecasts with actual values found")
         
-        # Get pending orders count from orders collection
-        pending_orders = orders_collection.count_documents({'status': 'PENDING'})
+        # Get pending orders count from orders collection (team-based)
+        accessible_projects = list(projects_collection.find(accessible_projects_query, {'project_id': 1, '_id': 0}))
+        project_ids = [project['project_id'] for project in accessible_projects]
+        print(f"Accessible project IDs for {username}: {project_ids}")
         
-        # Get total orders count from orders collection
-        total_orders = orders_collection.count_documents({})
+        pending_orders = orders_collection.count_documents({
+            'project_id': {'$in': project_ids},
+            'status': 'PENDING'
+        })
         
-        print(f"Orders data: pending={pending_orders}, total={total_orders}")
+        # Get total orders count from orders collection (team-based)
+        total_orders = orders_collection.count_documents({
+            'project_id': {'$in': project_ids}
+        })
         
-        # Calculate projects added this month
+        print(f"Orders data for {username}: pending={pending_orders}, total={total_orders}")
+        
+        # Calculate projects added this month (team-based)
         current_month = datetime.now(timezone.utc).strftime('%Y-%m')
-        projects_this_month = projects_collection.count_documents({
+        monthly_query = {
+            **accessible_projects_query,
             'created_at': {
                 '$gte': datetime.strptime(f'{current_month}-01', '%Y-%m-%d').replace(tzinfo=timezone.utc)
             }
-        })
+        }
+        projects_this_month = projects_collection.count_documents(monthly_query)
         
         metrics = {
             'total_projects': total_projects,
@@ -1220,8 +1553,29 @@ MATERIAL_PRICES = {
 def get_orders():
     try:
         username = get_jwt_identity()
-        # Get orders for the current user
-        orders = list(orders_collection.find({'created_by': username}, {'_id': 0}).sort('created_at', -1))
+        
+        # Get user's teams
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        
+        # Get projects accessible to user
+        accessible_projects = list(projects_collection.find({
+            '$or': [
+                {'created_by': username},
+                {'team_id': {'$in': team_ids}}
+            ]
+        }, {'project_id': 1, '_id': 0}))
+        
+        project_ids = [project['project_id'] for project in accessible_projects]
+        
+        # Get orders for accessible projects
+        orders = list(orders_collection.find({
+            'project_id': {'$in': project_ids}
+        }, {'_id': 0}).sort('created_at', -1))
+        
         return jsonify(orders)
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
@@ -1267,6 +1621,24 @@ def create_order():
         
         result = orders_collection.insert_one(order_data)
         order_data['_id'] = str(result.inserted_id)
+        
+        # Notify team members if project has a team
+        if order_data.get('project_id'):
+            project = projects_collection.find_one({'project_id': order_data['project_id']})
+            if project and project.get('team_id'):
+                update_manager.notify_team_update(
+                    project['team_id'],
+                    'order_created',
+                    {
+                        'order_id': order_data['order_id'],
+                        'project_name': project.get('name'),
+                        'project_id': order_data['project_id'],
+                        'material': order_data.get('material'),
+                        'quantity': order_data.get('quantity'),
+                        'created_by': username
+                    }
+                )
+        
         return jsonify(order_data), 201
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
@@ -1341,7 +1713,25 @@ def update_order_status(order_id):
         )
         
         if result.matched_count == 0:
-            return jsonify({'error': 'Order not found'}), 404
+            return jsonify({'error': 'Order not found or access denied'}), 404
+        
+        # Notify team members of order status change
+        order = orders_collection.find_one({'order_id': order_id})
+        if order and order.get('project_id'):
+            project = projects_collection.find_one({'project_id': order['project_id']})
+            if project and project.get('team_id'):
+                update_manager.notify_team_update(
+                    project['team_id'],
+                    'order_status_changed',
+                    {
+                        'order_id': order_id,
+                        'project_name': project.get('name'),
+                        'project_id': order['project_id'],
+                        'old_status': order.get('status'),
+                        'new_status': data.get('status'),
+                        'updated_by': username
+                    }
+                )
             
         return jsonify({'message': 'Order updated successfully'}), 200
     except errors.PyMongoError as e:
@@ -1365,6 +1755,77 @@ def delete_order(order_id):
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
+# Real-time update system
+class RealTimeUpdateManager:
+    def __init__(self):
+        self.subscribers = defaultdict(list)  # team_id -> list of user_ids
+        self.update_queue = []
+        self.lock = threading.Lock()
+    
+    def subscribe_user_to_team(self, user_id, team_id):
+        """Subscribe a user to receive updates for a team"""
+        with self.lock:
+            if user_id not in self.subscribers[team_id]:
+                self.subscribers[team_id].append(user_id)
+                print(f"User {user_id} subscribed to team {team_id}")
+    
+    def unsubscribe_user_from_team(self, user_id, team_id):
+        """Unsubscribe a user from team updates"""
+        with self.lock:
+            if user_id in self.subscribers[team_id]:
+                self.subscribers[team_id].remove(user_id)
+                print(f"User {user_id} unsubscribed from team {team_id}")
+    
+    def notify_team_update(self, team_id, update_type, data):
+        """Notify all team members of an update"""
+        with self.lock:
+            update = {
+                'team_id': team_id,
+                'update_type': update_type,
+                'data': data,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            self.update_queue.append(update)
+            print(f"Queued update for team {team_id}: {update_type}")
+    
+    def get_updates_for_user(self, user_id):
+        """Get all pending updates for a user"""
+        with self.lock:
+            user_updates = []
+            for update in self.update_queue[:]:
+                # Check if user is subscribed to this team
+                if user_id in self.subscribers.get(update['team_id'], []):
+                    user_updates.append(update)
+                    self.update_queue.remove(update)
+            return user_updates
+
+# Global update manager
+update_manager = RealTimeUpdateManager()
+
+@app.route('/api/updates/subscribe/<team_id>', methods=['POST'])
+@jwt_required()
+def subscribe_to_updates(team_id):
+    """Subscribe user to team updates"""
+    username = get_jwt_identity()
+    update_manager.subscribe_user_to_team(username, team_id)
+    return jsonify({'message': f'Subscribed to updates for team {team_id}'}), 200
+
+@app.route('/api/updates/unsubscribe/<team_id>', methods=['POST'])
+@jwt_required()
+def unsubscribe_from_updates(team_id):
+    """Unsubscribe user from team updates"""
+    username = get_jwt_identity()
+    update_manager.unsubscribe_user_from_team(username, team_id)
+    return jsonify({'message': f'Unsubscribed from updates for team {team_id}'}), 200
+
+@app.route('/api/updates/poll', methods=['GET'])
+@jwt_required()
+def poll_updates():
+    """Poll for pending updates"""
+    username = get_jwt_identity()
+    updates = update_manager.get_updates_for_user(username)
+    return jsonify({'updates': updates}), 200
+
 # Health check
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -1377,6 +1838,7 @@ def get_inventory():
     username = get_jwt_identity()
     
     try:
+        # Get inventory items (inventory is typically shared across teams)
         inventory_items = list(inventory_collection.find({}, {'_id': 0}))
         return jsonify(inventory_items), 200
     except errors.PyMongoError as e:
@@ -1719,6 +2181,731 @@ def delete_all_inventory():
         }), 200
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+# ==================== TEAM COLLABORATION APIs ====================
+
+@app.route('/api/teams', methods=['POST'])
+@jwt_required()
+def create_team():
+    """Create a new team"""
+    data = request.get_json()
+    username = get_jwt_identity()
+    
+    try:
+        team_data = {
+            'team_id': f'TEAM_{datetime.now().strftime("%Y%m%d%H%M%S")}',
+            'name': data.get('name'),
+            'description': data.get('description', ''),
+            'created_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'members': [{
+                'username': username,
+                'role': 'owner',
+                'joined_at': datetime.now(timezone.utc)
+            }],
+            'settings': {
+                'allow_member_invites': True,
+                'require_approval_for_projects': False
+            }
+        }
+        
+        result = teams_collection.insert_one(team_data)
+        team_data['_id'] = str(result.inserted_id)
+        
+        # Create notification for team creation
+        create_notification(username, 'team_created', f'Team "{team_data["name"]}" created successfully')
+        
+        return jsonify(team_data), 201
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/teams', methods=['GET'])
+@jwt_required()
+def get_user_teams():
+    """Get all teams for the current user"""
+    username = get_jwt_identity()
+    
+    try:
+        teams = list(teams_collection.find({
+            'members.username': username
+        }, {'_id': 0}))
+        
+        return jsonify(teams)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/teams/<team_id>', methods=['GET'])
+@jwt_required()
+def get_team_details(team_id):
+    """Get detailed information about a specific team"""
+    username = get_jwt_identity()
+    
+    try:
+        team = teams_collection.find_one({
+            'team_id': team_id,
+            'members.username': username
+        }, {'_id': 0})
+        
+        if not team:
+            return jsonify({'error': 'Team not found or access denied'}), 404
+            
+        return jsonify(team)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/teams/<team_id>/invite', methods=['POST'])
+@jwt_required()
+def invite_team_member(team_id):
+    """Invite a new member to the team"""
+    data = request.get_json()
+    username = get_jwt_identity()
+    email = data.get('email')
+    role = data.get('role', 'member')
+    
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+    
+    try:
+        # Check if user has permission to invite (owner or admin)
+        team = teams_collection.find_one({
+            'team_id': team_id,
+            'members.username': username,
+            'members.role': {'$in': ['owner', 'admin']}
+        })
+        
+        if not team:
+            return jsonify({'error': 'Permission denied'}), 403
+        
+        # Check if user already exists
+        existing_user = users_collection.find_one({'email': email})
+        
+        # Generate invitation token
+        invitation_token = secrets.token_urlsafe(32)
+        
+        invitation_data = {
+            'invitation_token': invitation_token,
+            'team_id': team_id,
+            'team_name': team['name'],
+            'email': email,
+            'role': role,
+            'invited_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'status': 'pending',
+            'user_exists': existing_user is not None
+        }
+        
+        team_invitations_collection.insert_one(invitation_data)
+        
+        # Send invitation email
+        frontend_url = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
+        frontend_url = frontend_url.rstrip('/')
+        
+        if existing_user:
+            # User exists, send direct invitation
+            invitation_url = f"{frontend_url}/team-invitation?token={invitation_token}"
+            subject = f'Team Invitation - {team["name"]}'
+        else:
+            # User doesn't exist, send registration + invitation
+            invitation_url = f"{frontend_url}/register?invite={invitation_token}"
+            subject = f'Join {team["name"]} Team - PlanGrid'
+        
+        msg = Message(
+            subject=subject,
+            recipients=[email],
+            sender=app.config['MAIL_DEFAULT_SENDER']
+        )
+        
+        msg.html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Team Invitation - PlanGrid</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                    border-radius: 8px 8px 0 0;
+                }}
+                .content {{
+                    background: #f8fafc;
+                    padding: 30px;
+                    border-radius: 0 0 8px 8px;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: #2563eb;
+                    color: white;
+                    padding: 12px 24px;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    margin: 20px 0;
+                    font-weight: bold;
+                }}
+                .team-info {{
+                    background: #e2e8f0;
+                    padding: 15px;
+                    border-radius: 6px;
+                    margin: 20px 0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>🤝 Team Invitation</h1>
+                <p>PlanGrid Material Forecast Portal</p>
+            </div>
+            
+            <div class="content">
+                <h2>You've been invited to join a team!</h2>
+                
+                <div class="team-info">
+                    <h3>Team: {team['name']}</h3>
+                    <p><strong>Role:</strong> {role.title()}</p>
+                    <p><strong>Invited by:</strong> {username}</p>
+                    {f"<p><strong>Description:</strong> {team.get('description', 'No description provided')}</p>" if team.get('description') else ''}
+                </div>
+                
+                <p>Click the button below to accept the invitation:</p>
+                
+                <div style="text-align: center;">
+                    <a href="{invitation_url}" class="button">Accept Invitation</a>
+                </div>
+                
+                <p>Or copy and paste this link:</p>
+                <p style="word-break: break-all; background: #e2e8f0; padding: 10px; border-radius: 4px;">
+                    {invitation_url}
+                </p>
+                
+                <p><small>This invitation will expire in 7 days.</small></p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        mail.send(msg)
+        
+        return jsonify({
+            'message': 'Invitation sent successfully',
+            'invitation_token': invitation_token
+        }), 201
+        
+    except Exception as e:
+        print(f"Error sending team invitation: {e}")
+        return jsonify({'error': 'Failed to send invitation'}), 500
+
+@app.route('/api/teams/invitations/<invitation_token>', methods=['GET'])
+def get_invitation_details(invitation_token):
+    """Get invitation details by token"""
+    try:
+        invitation = team_invitations_collection.find_one({
+            'invitation_token': invitation_token,
+            'status': 'pending',
+            'created_at': {'$gte': datetime.now(timezone.utc) - timedelta(days=7)}
+        }, {'_id': 0})
+        
+        if not invitation:
+            return jsonify({'error': 'Invalid or expired invitation'}), 404
+            
+        return jsonify(invitation)
+    except Exception as e:
+        return jsonify({'error': f'Failed to get invitation: {str(e)}'}), 500
+
+@app.route('/api/teams/invitations/<invitation_token>/accept', methods=['POST'])
+@jwt_required()
+def accept_team_invitation(invitation_token):
+    """Accept a team invitation"""
+    username = get_jwt_identity()
+    
+    try:
+        invitation = team_invitations_collection.find_one({
+            'invitation_token': invitation_token,
+            'status': 'pending',
+            'created_at': {'$gte': datetime.now(timezone.utc) - timedelta(days=7)}
+        })
+        
+        if not invitation:
+            return jsonify({'error': 'Invalid or expired invitation'}), 404
+        
+        # Add user to team
+        teams_collection.update_one(
+            {'team_id': invitation['team_id']},
+            {
+                '$push': {
+                    'members': {
+                        'username': username,
+                        'role': invitation['role'],
+                        'joined_at': datetime.now(timezone.utc)
+                    }
+                }
+            }
+        )
+        
+        # Mark invitation as accepted
+        team_invitations_collection.update_one(
+            {'invitation_token': invitation_token},
+            {'$set': {'status': 'accepted', 'accepted_at': datetime.now(timezone.utc)}}
+        )
+        
+        # Create notification
+        create_notification(username, 'team_joined', f'You joined team "{invitation["team_name"]}"')
+        
+        # Notify team members about new member
+        team = teams_collection.find_one({'team_id': invitation['team_id']})
+        if team:
+            for member in team['members']:
+                if member['username'] != username:
+                    create_notification(
+                        member['username'], 
+                        'team_member_joined', 
+                        f'{username} joined team "{invitation["team_name"]}"'
+                    )
+        
+        # Notify real-time updates
+        update_manager.notify_team_update(invitation['team_id'], 'member_joined', {
+            'username': username,
+            'role': invitation['role']
+        })
+        
+        return jsonify({'message': 'Successfully joined the team'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to accept invitation: {str(e)}'}), 500
+
+@app.route('/api/projects/invitations/<invitation_token>/accept', methods=['POST'])
+@jwt_required()
+def accept_project_invitation(invitation_token):
+    """Accept a project invitation"""
+    username = get_jwt_identity()
+    
+    try:
+        invitation = team_invitations_collection.find_one({
+            'invitation_token': invitation_token,
+            'status': 'pending',
+            'type': 'project_invitation',
+            'created_at': {'$gte': datetime.now(timezone.utc) - timedelta(days=7)}
+        })
+        
+        if not invitation:
+            return jsonify({'error': 'Invalid or expired invitation'}), 404
+        
+        # Get the project to find its team
+        project = projects_collection.find_one({'project_id': invitation['project_id']})
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        # If project has a team, add user to that team
+        if project.get('team_id'):
+            # Check if user is already in the team
+            team = teams_collection.find_one({
+                'team_id': project['team_id'],
+                'members.username': username
+            })
+            
+            if not team:
+                # Add user to the project's team
+                teams_collection.update_one(
+                    {'team_id': project['team_id']},
+                    {
+                        '$push': {
+                            'members': {
+                                'username': username,
+                                'role': invitation['role'],
+                                'joined_at': datetime.now(timezone.utc)
+                            }
+                        }
+                    }
+                )
+        
+        # Mark invitation as accepted
+        team_invitations_collection.update_one(
+            {'invitation_token': invitation_token},
+            {'$set': {'status': 'accepted', 'accepted_at': datetime.now(timezone.utc)}}
+        )
+        
+        # Create notification
+        create_notification(username, 'project_joined', f'You joined project "{invitation["project_name"]}"')
+        
+        # Notify project team members about new member
+        if project.get('team_id'):
+            team = teams_collection.find_one({'team_id': project['team_id']})
+            if team:
+                for member in team['members']:
+                    if member['username'] != username:
+                        create_notification(
+                            member['username'], 
+                            'project_member_joined', 
+                            f'{username} joined project "{invitation["project_name"]}"'
+                        )
+                
+                # Notify real-time updates
+                update_manager.notify_team_update(project['team_id'], 'project_member_joined', {
+                    'username': username,
+                    'role': invitation['role'],
+                    'project_name': invitation['project_name']
+                })
+        
+        return jsonify({'message': 'Successfully joined the project'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to accept project invitation: {str(e)}'}), 500
+
+@app.route('/api/teams/<team_id>/members', methods=['GET'])
+@jwt_required()
+def get_team_members(team_id):
+    """Get all members of a team"""
+    username = get_jwt_identity()
+    
+    try:
+        team = teams_collection.find_one({
+            'team_id': team_id,
+            'members.username': username
+        })
+        
+        if not team:
+            return jsonify({'error': 'Team not found or access denied'}), 404
+            
+        return jsonify(team['members'])
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/teams/<team_id>/members/<member_username>', methods=['DELETE'])
+@jwt_required()
+def remove_team_member(team_id, member_username):
+    """Remove a member from the team"""
+    username = get_jwt_identity()
+    
+    try:
+        # Check if user has permission (owner or admin)
+        team = teams_collection.find_one({
+            'team_id': team_id,
+            'members.username': username,
+            'members.role': {'$in': ['owner', 'admin']}
+        })
+        
+        if not team:
+            return jsonify({'error': 'Permission denied'}), 403
+        
+        # Check if trying to remove owner
+        member_to_remove = next((m for m in team['members'] if m['username'] == member_username), None)
+        if member_to_remove and member_to_remove['role'] == 'owner':
+            return jsonify({'error': 'Cannot remove team owner'}), 400
+        
+        # Remove member
+        teams_collection.update_one(
+            {'team_id': team_id},
+            {'$pull': {'members': {'username': member_username}}}
+        )
+        
+        # Create notification for removed member
+        create_notification(member_username, 'team_removed', f'You were removed from team "{team["name"]}"')
+        
+        return jsonify({'message': 'Member removed successfully'}), 200
+        
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/teams/<team_id>/projects', methods=['GET'])
+@jwt_required()
+def get_team_projects(team_id):
+    """Get all projects shared with the team"""
+    username = get_jwt_identity()
+    
+    try:
+        # Check if user is team member
+        team = teams_collection.find_one({
+            'team_id': team_id,
+            'members.username': username
+        })
+        
+        if not team:
+            return jsonify({'error': 'Team not found or access denied'}), 404
+        
+        # Get projects created by team members
+        team_members = [m['username'] for m in team['members']]
+        projects = list(projects_collection.find({
+            'created_by': {'$in': team_members}
+        }, {'_id': 0}).sort('created_at', -1))
+        
+        return jsonify(projects)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/notifications', methods=['GET'])
+@jwt_required()
+def get_user_notifications():
+    """Get notifications for the current user"""
+    username = get_jwt_identity()
+    
+    try:
+        notifications = list(notifications_collection.find({
+            'user_id': username
+        }, {'_id': 0}).sort('created_at', -1).limit(50))
+        
+        return jsonify(notifications)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/notifications/<notification_id>/read', methods=['PUT'])
+@jwt_required()
+def mark_notification_read(notification_id):
+    """Mark a notification as read"""
+    username = get_jwt_identity()
+    
+    try:
+        notifications_collection.update_one(
+            {'_id': ObjectId(notification_id), 'user_id': username},
+            {'$set': {'read': True, 'read_at': datetime.now(timezone.utc)}}
+        )
+        
+        return jsonify({'message': 'Notification marked as read'}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to update notification: {str(e)}'}), 500
+
+@app.route('/api/team-data-summary', methods=['GET'])
+@jwt_required()
+def get_team_data_summary():
+    """Get a summary of all team-shared data"""
+    username = get_jwt_identity()
+    
+    try:
+        team_query = get_team_based_query(username)
+        team_members = get_team_members_for_user(username)
+        
+        # Get counts for different data types
+        projects_count = projects_collection.count_documents(team_query)
+        orders_count = orders_collection.count_documents(team_query)
+        forecasts_count = forecasts_collection.count_documents(team_query)
+        inventory_count = inventory_collection.count_documents({})  # Inventory is shared
+        
+        # Get recent activity
+        recent_projects = list(projects_collection.find(team_query, {'_id': 0, 'name': 1, 'created_by': 1, 'created_at': 1}).sort('created_at', -1).limit(5))
+        recent_orders = list(orders_collection.find(team_query, {'_id': 0, 'project': 1, 'material': 1, 'created_by': 1, 'created_at': 1}).sort('created_at', -1).limit(5))
+        
+        return jsonify({
+            'team_members': team_members,
+            'counts': {
+                'projects': projects_count,
+                'orders': orders_count,
+                'forecasts': forecasts_count,
+                'inventory_items': inventory_count
+            },
+            'recent_activity': {
+                'projects': recent_projects,
+                'orders': recent_orders
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to get team data summary: {str(e)}'}), 500
+
+@app.route('/api/projects/<project_id>/invite-team', methods=['POST'])
+@jwt_required()
+def invite_team_to_project(project_id):
+    """Invite team members to a specific project"""
+    data = request.get_json()
+    username = get_jwt_identity()
+    email = data.get('email')
+    role = data.get('role', 'member')
+    
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+    
+    try:
+        # Check if user owns the project
+        project = projects_collection.find_one({
+            'project_id': project_id,
+            'created_by': username
+        })
+        
+        if not project:
+            return jsonify({'error': 'Project not found or access denied'}), 404
+        
+        # Check if user exists
+        existing_user = users_collection.find_one({'email': email})
+        
+        # Generate invitation token
+        invitation_token = secrets.token_urlsafe(32)
+        
+        invitation_data = {
+            'invitation_token': invitation_token,
+            'project_id': project_id,
+            'project_name': project['name'],
+            'email': email,
+            'role': role,
+            'invited_by': username,
+            'created_at': datetime.now(timezone.utc),
+            'status': 'pending',
+            'user_exists': existing_user is not None,
+            'type': 'project_invitation'
+        }
+        
+        team_invitations_collection.insert_one(invitation_data)
+        
+        # Send invitation email
+        frontend_url = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
+        frontend_url = frontend_url.rstrip('/')
+        
+        if existing_user:
+            invitation_url = f"{frontend_url}/project-invitation?token={invitation_token}"
+            subject = f'Project Invitation - {project["name"]}'
+        else:
+            invitation_url = f"{frontend_url}/register?invite={invitation_token}"
+            subject = f'Join Project {project["name"]} - PlanGrid'
+        
+        msg = Message(
+            subject=subject,
+            recipients=[email],
+            sender=app.config['MAIL_DEFAULT_SENDER']
+        )
+        
+        msg.html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Project Invitation - PlanGrid</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                    border-radius: 8px 8px 0 0;
+                }}
+                .content {{
+                    background: #f8fafc;
+                    padding: 30px;
+                    border-radius: 0 0 8px 8px;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: #2563eb;
+                    color: white;
+                    padding: 12px 24px;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    margin: 20px 0;
+                    font-weight: bold;
+                }}
+                .project-info {{
+                    background: #e2e8f0;
+                    padding: 15px;
+                    border-radius: 6px;
+                    margin: 20px 0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>📁 Project Invitation</h1>
+                <p>PlanGrid Material Forecast Portal</p>
+            </div>
+            
+            <div class="content">
+                <h2>You've been invited to collaborate on a project!</h2>
+                
+                <div class="project-info">
+                    <h3>Project: {project['name']}</h3>
+                    <p><strong>Location:</strong> {project.get('location', 'Not specified')}</p>
+                    <p><strong>Status:</strong> {project.get('status', 'Not specified')}</p>
+                    <p><strong>Invited by:</strong> {username}</p>
+                    {f"<p><strong>Description:</strong> {project.get('description', 'No description provided')}</p>" if project.get('description') else ''}
+                </div>
+                
+                <p>Click the button below to accept the invitation:</p>
+                
+                <div style="text-align: center;">
+                    <a href="{invitation_url}" class="button">Accept Project Invitation</a>
+                </div>
+                
+                <p>Or copy and paste this link:</p>
+                <p style="word-break: break-all; background: #e2e8f0; padding: 10px; border-radius: 4px;">
+                    {invitation_url}
+                </p>
+                
+                <p><small>This invitation will expire in 7 days.</small></p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        mail.send(msg)
+        
+        return jsonify({
+            'message': 'Project invitation sent successfully',
+            'invitation_token': invitation_token
+        }), 201
+        
+    except Exception as e:
+        print(f"Error sending project invitation: {e}")
+        return jsonify({'error': 'Failed to send invitation'}), 500
+
+def create_notification(user_id, notification_type, message, data=None):
+    """Helper function to create notifications"""
+    try:
+        notification_data = {
+            'user_id': user_id,
+            'type': notification_type,
+            'message': message,
+            'data': data or {},
+            'read': False,
+            'created_at': datetime.now(timezone.utc)
+        }
+        
+        notifications_collection.insert_one(notification_data)
+    except Exception as e:
+        print(f"Error creating notification: {e}")
+
+def get_user_teams(username):
+    """Get all teams that a user belongs to"""
+    try:
+        teams = list(teams_collection.find({
+            'members.username': username
+        }, {'_id': 0}))
+        return teams
+    except Exception as e:
+        print(f"Error getting user teams: {e}")
+        return []
+
+def get_team_members_for_user(username):
+    """Get all team members from all teams that a user belongs to"""
+    try:
+        teams = get_user_teams(username)
+        all_members = set([username])  # Include the user themselves
+        
+        for team in teams:
+            for member in team.get('members', []):
+                all_members.add(member['username'])
+        
+        return list(all_members)
+    except Exception as e:
+        print(f"Error getting team members: {e}")
+        return [username]  # Fallback to just the user
+
+def get_team_based_query(username):
+    """Get MongoDB query for team-based data access"""
+    team_members = get_team_members_for_user(username)
+    return {'created_by': {'$in': team_members}}
 
 if __name__ == '__main__':
     debug_flag = os.getenv('FLASK_DEBUG', 'true').lower() == 'true'

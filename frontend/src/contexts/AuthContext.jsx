@@ -20,7 +20,8 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       // Verify token and get user info with role
-      axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/me`)
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      axios.get(`${apiUrl}/api/me`)
         .then((res) => {
           setUser({ username: res.data.username, role: res.data.role, email: res.data.email });
         })
@@ -38,7 +39,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/login`, {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const response = await axios.post(`${apiUrl}/api/login`, {
         username,
         password
       });
@@ -58,7 +60,8 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (username, email, password) => {
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/register`, {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      await axios.post(`${apiUrl}/api/register`, {
         username,
         email,
         password
@@ -69,6 +72,18 @@ export const AuthProvider = ({ children }) => {
         success: false, 
         error: error.response?.data?.error || 'Registration failed' 
       };
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const response = await axios.get(`${apiUrl}/api/me`);
+      setUser({ username: response.data.username, role: response.data.role, email: response.data.email });
+      return response.data;
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+      throw error;
     }
   };
 
@@ -134,6 +149,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    refreshUser,
     loading,
     forgotPassword,
     resetPassword,

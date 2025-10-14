@@ -15,6 +15,9 @@ import ProjectManagement from './components/ProjectManagement';
 import SupplierManagement from './components/SupplierManagement';
 import PurchaseRequests from './components/PurchaseRequests';
 import Inventory from './components/Inventory';
+import Teams from './components/Teams';
+import Notifications from './components/Notifications';
+import TeamInvitation from './components/TeamInvitation';
 import Navigation from './components/Navigation';
 import './App.css';
 
@@ -36,7 +39,7 @@ const AppContent = () => {
   return (
     <>
       <Navigation />
-      <main className="ml-64">
+      <main className="transition-all duration-300 ease-in-out min-h-screen" style={{ marginLeft: 'var(--sidebar-width, 256px)' }}>
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/forecasting" element={<ForecastingPage />} />
@@ -49,6 +52,8 @@ const AppContent = () => {
           <Route path="/planning" element={<PlanningApprovals />} />
           <Route path="/om" element={<OperationsMaintenance />} />
           <Route path="/dispatch" element={<LoadDispatch />} />
+          <Route path="/teams" element={<Teams />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           {/* Catch-all route for 404s */}
           <Route path="*" element={
@@ -74,6 +79,7 @@ function App() {
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/team-invitation" element={<TeamInvitation />} />
             <Route path="/*" element={
               <ProtectedRoute>
                 <AppContent />

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, LogIn, UserPlus, BarChart3, Calendar, FileText, IndianRupee, Shield } from 'lucide-react';
+import axios from 'axios';
 import PlanGridLogo from '/PlanGrid.jpg';
 import ForgotPassword from './ForgotPassword';
 
@@ -199,8 +200,27 @@ const Register = ({ onSwitchToLogin }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const [invitationInfo, setInvitationInfo] = useState(null);
+  const { register, refreshUser } = useAuth();
   const navigate = useNavigate();
+
+  // Check for invitation token in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteToken = urlParams.get('invite');
+    if (inviteToken) {
+      fetchInvitationDetails(inviteToken);
+    }
+  }, []);
+
+  const fetchInvitationDetails = async (token) => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/teams/invitations/${token}`);
+      setInvitationInfo(response.data);
+    } catch (error) {
+      console.error('Error fetching invitation details:', error);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -217,10 +237,38 @@ const Register = ({ onSwitchToLogin }) => {
     const result = await register(formData.username, formData.email, formData.password);
     
     if (result.success) {
-      setSuccess('Registration successful! Redirecting to login...');
+      setSuccess('Registration successful! Redirecting...');
+      
+      // If there's an invitation, accept it after registration
+      const urlParams = new URLSearchParams(window.location.search);
+      const inviteToken = urlParams.get('invite');
+      
+      if (inviteToken) {
+        try {
+          // Determine if this is a team or project invitation
+          const isProjectInvitation = invitationInfo?.type === 'project_invitation';
+          const endpoint = isProjectInvitation 
+            ? `/api/projects/invitations/${inviteToken}/accept`
+            : `/api/teams/invitations/${inviteToken}/accept`;
+          
+          await axios.post(`${import.meta.env.VITE_API_BASE_URL}${endpoint}`);
+          
+          // Refresh user data to get updated team information
+          await refreshUser();
+          
+          if (isProjectInvitation) {
+            setSuccess('Registration successful! You have been added to the project. Redirecting...');
+          } else {
+            setSuccess('Registration successful! You have been added to the team. Redirecting...');
+          }
+        } catch (error) {
+          console.error('Error accepting invitation:', error);
+        }
+      }
+      
       setTimeout(() => {
-        onSwitchToLogin();
-      }, 1500);
+        navigate('/dashboard');
+      }, 2000);
     } else {
       setError(result.error);
     }
@@ -297,6 +345,22 @@ const Register = ({ onSwitchToLogin }) => {
         <div className="flex-1 flex items-center justify-center px-8 pb-8">
           <div className="w-full max-w-md">
             <h2 className="text-3xl font-bold text-gray-900 mb-8">Create Account</h2>
+
+            {/* Team Invitation Info */}
+            {invitationInfo && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <div className="text-2xl mr-2">🤝</div>
+                  <h3 className="font-semibold text-blue-900">Team Invitation</h3>
+                </div>
+                <p className="text-sm text-blue-800">
+                  You're joining <strong>{invitationInfo.team_name}</strong> as a <strong>{invitationInfo.role}</strong>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Invited by {invitationInfo.invited_by}
+                </p>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Username Field */}

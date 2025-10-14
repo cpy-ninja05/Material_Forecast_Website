@@ -265,8 +265,31 @@ const CreateProjectForm = ({ onSave, onCancel }) => {
     start_date: '',
     end_date: '',
     project_size_km: 0,
-    description: ''
+    description: '',
+    team_id: ''  // Add team selection
   });
+  
+  const [teams, setTeams] = useState([]);
+  const [loadingTeams, setLoadingTeams] = useState(true);
+
+  useEffect(() => {
+    fetchTeams();
+  }, []);
+
+  const fetchTeams = async () => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/teams`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      setTeams(response.data);
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+    } finally {
+      setLoadingTeams(false);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -482,6 +505,29 @@ const CreateProjectForm = ({ onSave, onCancel }) => {
         />
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Assign to Team (Optional)
+        </label>
+        <select
+          name="team_id"
+          value={formData.team_id}
+          onChange={handleChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          disabled={loadingTeams}
+        >
+          <option value="">No team assigned</option>
+          {teams.map((team) => (
+            <option key={team.team_id} value={team.team_id}>
+              {team.name} ({team.members.length} members)
+            </option>
+          ))}
+        </select>
+        {loadingTeams && (
+          <p className="text-sm text-gray-500 mt-1">Loading teams...</p>
+        )}
+      </div>
+
       <div className="flex gap-3">
         <button
           type="button"
@@ -523,6 +569,9 @@ const ProjectManagement = () => {
   const [editingProject, setEditingProject] = useState(null);
   const [deletingProject, setDeletingProject] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showTeamInviteModal, setShowTeamInviteModal] = useState(false);
+  const [invitingProject, setInvitingProject] = useState(null);
+  const [inviteForm, setInviteForm] = useState({ email: '', role: 'member' });
   const [error, setError] = useState('');
   const [chartView, setChartView] = useState('tons');
   const [forecastMonths, setForecastMonths] = useState([]); // YYYY-MM strings with predictions only
@@ -805,6 +854,45 @@ const ProjectManagement = () => {
     setShowDeleteModal(true);
   };
 
+  const openTeamInviteModal = (project) => {
+    setInvitingProject(project);
+    setInviteForm({ email: '', role: 'member' });
+    setShowTeamInviteModal(true);
+  };
+
+  const closeTeamInviteModal = () => {
+    setShowTeamInviteModal(false);
+    setInvitingProject(null);
+    setInviteForm({ email: '', role: 'member' });
+  };
+
+  const sendTeamInvitation = async () => {
+    if (!inviteForm.email) {
+      setError('Email is required');
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/api/projects/${invitingProject.project_id}/invite-team`,
+        inviteForm,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      if (response.status === 201) {
+        alert('Team invitation sent successfully!');
+        closeTeamInviteModal();
+      }
+    } catch (error) {
+      console.error('Error sending team invitation:', error);
+      setError(error.response?.data?.error || 'Failed to send invitation');
+    }
+  };
+
   const handleEditProject = async (updatedProject) => {
     try {
       const response = await axios.put(`${import.meta.env.VITE_API_BASE_URL}/api/projects/${updatedProject.project_id}`, updatedProject);
@@ -1034,8 +1122,18 @@ const ProjectManagement = () => {
                   >
                     <AlertCircle className="h-3 w-3" />
                     Delete
-              </button>
-            </div>
+                  </button>
+                </div>
+                
+                <div className="mt-2">
+                  <button
+                    onClick={() => openTeamInviteModal(project)}
+                    className="w-full px-3 py-2 text-xs font-medium text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Building className="h-3 w-3" />
+                    Invite Team Members
+                  </button>
+                </div>
           </div>
             ))}
         </div>
@@ -1595,6 +1693,85 @@ const ProjectManagement = () => {
             </div>
           </div>
         )}
+        
+      {/* Team Invitation Modal */}
+      {showTeamInviteModal && invitingProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Invite Team Members
+              </h2>
+              <button 
+                onClick={closeTeamInviteModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {invitingProject.name}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Invite team members to collaborate on this project
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={inviteForm.email}
+                    onChange={(e) => setInviteForm({...inviteForm, email: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter email address"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Role
+                  </label>
+                  <select
+                    value={inviteForm.role}
+                    onChange={(e) => setInviteForm({...inviteForm, role: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                
+                {error && (
+                  <div className="text-red-600 text-sm">{error}</div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={closeTeamInviteModal}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sendTeamInvitation}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                Send Invitation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

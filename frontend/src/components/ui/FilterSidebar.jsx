@@ -192,7 +192,7 @@ const FilterSidebar = ({ isOpen, onClose, onApplyFilters, filters, setFilters })
         </div>
 
         {/* Action Buttons */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        <div className="mt-auto p-6 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
           <div className="flex space-x-3">
             <button
               onClick={handleReset}
