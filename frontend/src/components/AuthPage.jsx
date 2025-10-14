@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, LogIn, UserPlus, BarChart3, Calendar, FileText, IndianRupee, Shield } from 'lucide-react';
-import PlanGridLogo from '/public/PlanGrid.jpg';
+import PlanGridLogo from '/PlanGrid.jpg';
 // Forgot password removed
 
 const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }) => {

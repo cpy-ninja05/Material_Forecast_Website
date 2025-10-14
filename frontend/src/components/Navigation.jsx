@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { BarChart3, Calculator, Map, ShoppingCart, Boxes, LogOut, Building } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ui/ThemeToggle';
-import PlanGridLogo from '/public/PlanGrid.jpg';
+import PlanGridLogo from '/PlanGrid.jpg';
 
 const Navigation = () => {
   const location = useLocation();
