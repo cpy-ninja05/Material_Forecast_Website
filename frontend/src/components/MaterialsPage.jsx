@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Package, TrendingUp, Filter, Download, Eye, 
   BarChart3, PieChart, MapPin, Calendar, AlertTriangle,
-  RefreshCw, Search, SortAsc, SortDesc, Zap, Target, DollarSign
+  RefreshCw, Search, SortAsc, SortDesc, Target, DollarSign
 } from 'lucide-react';
 import axios from 'axios';
 import InteractiveChart from './ui/InteractiveChart';

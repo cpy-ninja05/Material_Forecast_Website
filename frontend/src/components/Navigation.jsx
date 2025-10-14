@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Calculator, Map, ShoppingCart, Boxes, LogOut, Zap, Building } from 'lucide-react';
+import { BarChart3, Calculator, Map, ShoppingCart, Boxes, LogOut, Building } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ui/ThemeToggle';
+import PlanGridLogo from '/public/PlanGrid.jpg';
 
 const Navigation = () => {
   const location = useLocation();
@@ -25,8 +26,8 @@ const Navigation = () => {
       <div className="h-20 flex items-center px-6 border-b border-gray-200 dark:border-gray-700/70">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center">
-            <div className="flex items-center justify-center w-8 h-8 bg-purple-600 rounded-lg mr-3">
-              <Zap className="h-5 w-5 text-white" />
+            <div className="flex items-center justify-center w-8 h-8 bg-purple-600 rounded-lg mr-3 overflow-hidden">
+              <img src={PlanGridLogo} alt="PlanGrid" className="w-full h-full object-cover" />
             </div>
             <div>
               <div className="text-lg font-bold text-gray-900 dark:text-white">PLANGRID</div>

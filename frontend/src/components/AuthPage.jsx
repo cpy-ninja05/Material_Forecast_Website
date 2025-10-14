@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, LogIn, UserPlus, Building2, BarChart3, Calendar, FileText, IndianRupee, Shield } from 'lucide-react';
+import { Eye, EyeOff, LogIn, UserPlus, BarChart3, Calendar, FileText, IndianRupee, Shield } from 'lucide-react';
+import PlanGridLogo from '/public/PlanGrid.jpg';
 // Forgot password removed
 
 const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }) => {
@@ -83,10 +84,10 @@ const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-8">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-white" />
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+              <img src={PlanGridLogo} alt="PlanGrid" className="w-full h-full object-cover" />
             </div>
-            <span className="text-xl font-bold text-blue-600">PLANGRID</span>
+            <span className="text-xl font-bold text-blue-600">PlanGrid</span>
           </div>
           <button
             onClick={onSwitchToRegister}
@@ -279,8 +280,8 @@ const Register = ({ onSwitchToLogin }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-8">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-white" />
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+              <img src={PlanGridLogo} alt="PlanGrid" className="w-full h-full object-cover" />
             </div>
             <span className="text-xl font-bold text-blue-600">PLANGRID</span>
           </div>
