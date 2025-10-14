@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, LogIn, UserPlus, Building2, BarChart3, Calendar, FileText, IndianRupee, Shield } from 'lucide-react';
+import ForgotPassword from './ForgotPassword';
 
-const Login = ({ onSwitchToRegister }) => {
+const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }) => {
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -154,7 +155,11 @@ const Login = ({ onSwitchToRegister }) => {
                   <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                   <span className="ml-2 text-sm text-gray-700">Save User</span>
                 </label>
-                <button type="button" className="text-sm text-blue-600 hover:text-blue-500">
+                <button 
+                  type="button" 
+                  onClick={onSwitchToForgotPassword}
+                  className="text-sm text-blue-600 hover:text-blue-500"
+                >
                   Forgot Password?
                 </button>
               </div>
@@ -414,6 +419,7 @@ const Register = ({ onSwitchToLogin }) => {
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -433,8 +439,13 @@ const AuthPage = () => {
 
   return (
     <>
-      {isLogin ? (
-        <Login onSwitchToRegister={() => setIsLogin(false)} />
+      {showForgotPassword ? (
+        <ForgotPassword onBackToLogin={() => setShowForgotPassword(false)} />
+      ) : isLogin ? (
+        <Login 
+          onSwitchToRegister={() => setIsLogin(false)} 
+          onSwitchToForgotPassword={() => setShowForgotPassword(true)}
+        />
       ) : (
         <Register onSwitchToLogin={() => setIsLogin(true)} />
       )}

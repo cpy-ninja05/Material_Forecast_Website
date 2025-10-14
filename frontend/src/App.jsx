@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import AuthPage from './components/AuthPage';
+import ResetPassword from './components/ResetPassword';
 import Dashboard from './components/Dashboard';
 import ForecastingPage from './components/ForecastingPage';
 import MaterialsPage from './components/MaterialsPage';
@@ -62,6 +63,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/*" element={
               <ProtectedRoute>
                 <AppContent />
