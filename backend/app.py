@@ -8,12 +8,17 @@ import joblib
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
+import re
 from pymongo import MongoClient, errors
-from email_service import email_service
+from dotenv import load_dotenv
 
+load_dotenv()  # load environment variables from .env if present
+from email_service import email_service
 app = Flask(__name__)
-app.config['JWT_SECRET_KEY'] = 'plangrid-secret-key-2025'
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+# Config from environment
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'plangrid-secret-key-2025')
+_jwt_expires_hours = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES_HOURS', '24'))
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=_jwt_expires_hours)
 jwt = JWTManager(app)
 CORS(app)
 
@@ -32,12 +37,13 @@ def init_db():
     inventory_collection = db['inventory']
     orders_collection = db['orders']
     material_actuals_collection = db['material_actuals']
-    password_reset_tokens_collection = db['password_reset_tokens']
+    # password reset collection removed
 
     # Ensure unique indexes for username and email
     try:
         users_collection.create_index('username', unique=True)
         users_collection.create_index('email', unique=True)
+        users_collection.create_index('phone')
         # Only create project_id index if collection is empty or doesn't have null values
         if projects_collection.count_documents({'project_id': None}) == 0:
             projects_collection.create_index('project_id', unique=True)
@@ -47,12 +53,11 @@ def init_db():
         inventory_collection.create_index([('material_code', 1), ('warehouse', 1)], unique=True)
         orders_collection.create_index('order_id', unique=True)
         material_actuals_collection.create_index([('project_id', 1), ('month', 1)], unique=True)
-        password_reset_tokens_collection.create_index('token', unique=True)
-        password_reset_tokens_collection.create_index('created_at', expireAfterSeconds=3600)  # 1 hour expiry
+        pass
     except errors.PyMongoError as e:
         print(f"Error creating indexes: {e}")
 
-    return client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection, password_reset_tokens_collection
+    return client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection
 
 # Load models and encoders
 def load_models():
@@ -76,7 +81,7 @@ def load_data():
         return None
 
 # Initialize
-client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection, password_reset_tokens_collection = init_db()
+client, db, users_collection, projects_collection, forecasts_collection, inventory_collection, orders_collection, material_actuals_collection, project_forecasts_collection = init_db()
 model, feature_cols, target_cols, label_encoders = load_models()
 df = load_data()
 
@@ -159,113 +164,18 @@ def login():
 def forgot_password():
     """Initiate password reset process"""
     data = request.get_json()
-    email = data.get('email')
+    # Feature removed
+    return jsonify({'error': 'Feature disabled'}), 410
     
-    if not email:
-        return jsonify({'error': 'Email is required'}), 400
-    
-    try:
-        # Find user by email
-        user = users_collection.find_one({'email': email})
-        if not user:
-            # Don't reveal if email exists or not for security
-            return jsonify({'message': 'If the email exists, a password reset link has been sent'}), 200
-        
-        # Generate secure reset token
-        reset_token = secrets.token_urlsafe(32)
-        
-        # Store reset token in database with expiry
-        password_reset_tokens_collection.insert_one({
-            'token': reset_token,
-            'email': email,
-            'username': user['username'],
-            'created_at': datetime.now(timezone.utc),
-            'used': False
-        })
-        
-        # Send email (in production, you might want to queue this)
-        email_sent = email_service.send_password_reset_email(email, reset_token, user['username'])
-        
-        if email_sent:
-            return jsonify({'message': 'If the email exists, a password reset link has been sent'}), 200
-        else:
-            return jsonify({'error': 'Failed to send reset email. Please try again later.'}), 500
-            
-    except errors.PyMongoError as e:
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
-    except Exception as e:
-        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+    # Unreachable
 
 @app.route('/api/reset-password', methods=['POST'])
 def reset_password():
-    """Reset password using token"""
-    data = request.get_json()
-    token = data.get('token')
-    new_password = data.get('new_password')
-    
-    if not token or not new_password:
-        return jsonify({'error': 'Token and new password are required'}), 400
-    
-    if len(new_password) < 6:
-        return jsonify({'error': 'Password must be at least 6 characters long'}), 400
-    
-    try:
-        # Find valid reset token
-        reset_record = password_reset_tokens_collection.find_one({
-            'token': token,
-            'used': False,
-            'created_at': {'$gte': datetime.now(timezone.utc) - timedelta(hours=1)}
-        })
-        
-        if not reset_record:
-            return jsonify({'error': 'Invalid or expired reset token'}), 400
-        
-        # Update user password
-        password_hash = generate_password_hash(new_password)
-        users_collection.update_one(
-            {'email': reset_record['email']},
-            {'$set': {'password_hash': password_hash}}
-        )
-        
-        # Mark token as used
-        password_reset_tokens_collection.update_one(
-            {'token': token},
-            {'$set': {'used': True}}
-        )
-        
-        return jsonify({'message': 'Password reset successfully'}), 200
-        
-    except errors.PyMongoError as e:
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
-    except Exception as e:
-        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+    return jsonify({'error': 'Feature disabled'}), 410
 
 @app.route('/api/verify-reset-token', methods=['POST'])
 def verify_reset_token():
-    """Verify if reset token is valid"""
-    data = request.get_json()
-    token = data.get('token')
-    
-    if not token:
-        return jsonify({'error': 'Token is required'}), 400
-    
-    try:
-        # Check if token exists and is valid
-        reset_record = password_reset_tokens_collection.find_one({
-            'token': token,
-            'used': False,
-            'created_at': {'$gte': datetime.now(timezone.utc) - timedelta(hours=1)}
-        })
-        
-        if reset_record:
-            return jsonify({'valid': True, 'email': reset_record['email']}), 200
-        else:
-            return jsonify({'valid': False, 'error': 'Invalid or expired token'}), 400
-            
-    except errors.PyMongoError as e:
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
-    except Exception as e:
-        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+    return jsonify({'error': 'Feature disabled'}), 410
 
 # Analytics routes
 @app.route('/api/analytics/overview', methods=['GET'])
@@ -1492,5 +1402,58 @@ def get_materials():
     except Exception as e:
         return jsonify({'error': f'Failed to fetch materials: {str(e)}'}), 500
 
+# Warehouse Management Endpoints
+@app.route('/api/warehouses', methods=['GET'])
+@jwt_required()
+def get_warehouses():
+    try:
+        # Get unique warehouses from inventory
+        warehouses = inventory_collection.distinct('warehouse')
+        warehouses = [w for w in warehouses if w]  # Filter out None/empty values
+        return jsonify(warehouses)
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/inventory/<material_code>', methods=['DELETE'])
+@jwt_required()
+def delete_inventory_item(material_code):
+    username = get_jwt_identity()
+    
+    try:
+        result = inventory_collection.delete_one({'material_code': material_code})
+        
+        if result.deleted_count == 0:
+            return jsonify({'error': 'Inventory item not found'}), 404
+            
+        return jsonify({
+            'message': 'Inventory item deleted successfully',
+            'material_code': material_code,
+            'deleted_by': username,
+            'deleted_at': datetime.now(timezone.utc).isoformat()
+        }), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+@app.route('/api/inventory/delete-all', methods=['DELETE'])
+@jwt_required()
+def delete_all_inventory():
+    username = get_jwt_identity()
+    
+    try:
+        # Delete all inventory items
+        result = inventory_collection.delete_many({})
+        
+        return jsonify({
+            'message': 'All inventory items deleted successfully',
+            'deleted_count': result.deleted_count,
+            'deleted_by': username,
+            'deleted_at': datetime.now(timezone.utc).isoformat()
+        }), 200
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    debug_flag = os.getenv('FLASK_DEBUG', 'true').lower() == 'true'
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', '5000'))
+    app.run(debug=debug_flag, host=host, port=port)

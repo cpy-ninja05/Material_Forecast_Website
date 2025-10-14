@@ -894,16 +894,16 @@ const ProjectManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="px-8 py-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Project Management</h1>
-              <p className="text-gray-600 mt-2">Manage projects, view forecasts, and track actual values</p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 text-left">
+              <h1 className="text-left text-3xl font-bold text-gray-900 dark:text-gray-100">Project Management</h1>
+              <p className="text-left text-gray-600 dark:text-gray-300 mt-2">Manage projects, view forecasts, and track actual values</p>
             </div>
-            <div className="flex gap-3">
+            <div className="shrink-0">
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
@@ -912,22 +912,22 @@ const ProjectManagement = () => {
                 Add Project
               </button>
             </div>
-              </div>
+          </div>
             </div>
           </div>
           
       <div className="p-8 space-y-8">
         {/* View Toggle */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Projects Overview</h3>
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Projects Overview</h3>
+            <div className="flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
               <button
                 onClick={() => setViewMode('grid')}
                 className={`px-4 py-2 flex items-center gap-2 text-sm ${
                   viewMode === 'grid' 
                     ? 'bg-blue-600 text-white' 
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <Grid3X3 className="h-4 w-4" />
@@ -938,7 +938,7 @@ const ProjectManagement = () => {
                 className={`px-4 py-2 flex items-center gap-2 text-sm ${
                   viewMode === 'chart' 
                     ? 'bg-blue-600 text-white' 
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <BarChart3 className="h-4 w-4" />
@@ -952,11 +952,11 @@ const ProjectManagement = () => {
         {viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => (
-              <div key={project.project_id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div key={project.project_id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{project.name}</h3>
-                    <p className="text-sm text-gray-600 flex items-center">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">{project.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center">
                       <MapPin className="h-4 w-4 mr-1" />
                       {project.location}
                 </p>
@@ -969,31 +969,31 @@ const ProjectManagement = () => {
           
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Tower Type</span>
-                    <span className="text-sm font-semibold text-gray-900">{project.tower_type || 'Not set'}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">Tower Type</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{project.tower_type || 'Not set'}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Substation Type</span>
-                    <span className="text-sm font-semibold text-gray-900">{project.substation_type || 'Not set'}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">Substation Type</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{project.substation_type || 'Not set'}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Project Size</span>
-                    <span className="text-sm font-semibold text-gray-900">{project.project_size_km || 0} km</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">Project Size</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{project.project_size_km || 0} km</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Budget</span>
-                    <span className="text-sm font-semibold text-gray-900">₹{(project.cost / 1000000).toFixed(1)}M</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">Budget</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{(project.cost / 1000000).toFixed(1)}M</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Start Date</span>
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm text-gray-600 dark:text-gray-300">Start Date</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Not set'}
                     </span>
                   </div>
                   {projectForecasts[project.project_id] && projectForecasts[project.project_id].length > 0 && (
-                    <div className="mt-3 p-2 bg-blue-50 rounded-lg">
-                      <div className="text-xs text-blue-600 font-medium mb-1">Latest Forecast</div>
-                      <div className="text-xs text-gray-600">
+                    <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Latest Forecast</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300">
                         {projectForecasts[project.project_id][0].forecast_month} - 
                         Steel: {projectForecasts[project.project_id][0].predictions?.quantity_steel_tons?.toFixed(1)} tons
                       </div>
@@ -1004,14 +1004,14 @@ const ProjectManagement = () => {
                 <div className="flex gap-2">
                   <button
                     onClick={() => generateForecast(project)}
-                    className="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                    className="flex-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center justify-center gap-1"
                   >
                     <TrendingUp className="h-3 w-3" />
                     Forecast
                   </button>
                   <button
                     onClick={() => openActualValuesModal(project)}
-                    className="flex-1 px-3 py-2 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors flex items-center justify-center gap-1"
+                    className="flex-1 px-3 py-2 text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors flex items-center justify-center gap-1"
                   >
                     <Edit className="h-3 w-3" />
                     Actual Values
@@ -1023,14 +1023,14 @@ const ProjectManagement = () => {
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => openEditModal(project)}
-                    className="flex-1 px-3 py-2 text-xs font-medium text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors flex items-center justify-center gap-1"
+                    className="flex-1 px-3 py-2 text-xs font-medium text-orange-600 bg-orange-50 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors flex items-center justify-center gap-1"
                   >
                     <Edit className="h-3 w-3" />
                     Edit Project
                   </button>
                   <button
                     onClick={() => openDeleteModal(project)}
-                    className="flex-1 px-3 py-2 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                    className="flex-1 px-3 py-2 text-xs font-medium text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1"
                   >
                     <AlertCircle className="h-3 w-3" />
                     Delete

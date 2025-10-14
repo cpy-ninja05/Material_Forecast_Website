@@ -290,8 +290,10 @@ const ForecastingPage = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-8 py-8">
-          <h1 className="text-3xl font-bold text-gray-900">Material Demand Forecasting</h1>
-          <p className="text-gray-600 mt-2">AI-powered predictions for next month's material requirements</p>
+          <div className="flex flex-col items-start">
+            <h1 className="text-3xl font-bold text-gray-900">Material Demand Forecasting</h1>
+            <p className="text-gray-600 mt-2">AI-powered predictions for next month's material requirements</p>
+          </div>
         </div>
       </div>
 

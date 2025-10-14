@@ -182,8 +182,8 @@ const MaterialsPage = () => {
       {/* Header */}
       <div className="bg-gray-800 shadow-sm border-b border-gray-700">
         <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-start justify-between">
+            <div className="text-left">
               <h1 className="text-2xl font-bold text-white flex items-center">
                 <Package className="h-8 w-8 mr-3 text-indigo-400" />
                 Material Forecast Visualization

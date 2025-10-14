@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Filter, RefreshCw, Package, AlertTriangle, Truck, Warehouse, TrendingUp, Edit, Save, X, Plus, Eye } from 'lucide-react';
+import { Filter, RefreshCw, Package, AlertTriangle, Truck, Warehouse, TrendingUp, Edit, Save, X, Plus, Eye, Trash2 } from 'lucide-react';
 
 const Inventory = () => {
   const [inventoryItems, setInventoryItems] = useState([]);
@@ -21,6 +21,35 @@ const Inventory = () => {
   // View states
   const [viewingItem, setViewingItem] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  
+  // Add new item states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({
+    name: '',
+    category: '',
+    warehouse: '',
+    quantity: 0,
+    unit: '',
+    min_stock: 0,
+    max_stock: 0,
+    available: 0,
+    reserved: 0,
+    in_transit: 0
+  });
+  const [availableMaterials, setAvailableMaterials] = useState([]);
+  const [availableWarehouses, setAvailableWarehouses] = useState([]);
+  const [newWarehouse, setNewWarehouse] = useState('');
+  const [showNewWarehouseInput, setShowNewWarehouseInput] = useState(false);
+  const [adding, setAdding] = useState(false);
+  
+  // Delete all states
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  
+  // Individual delete states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deletingItem, setDeletingItem] = useState(false);
 
   // Material definitions based on dataset
   const materialDefinitions = [
@@ -131,7 +160,7 @@ const Inventory = () => {
   ];
 
   // Load inventory data from backend
-  const loadInventory = async () => {
+  const loadInventory = async (skipAutoInit = false) => {
     setLoading(true);
     setError('');
     try {
@@ -155,20 +184,25 @@ const Inventory = () => {
 
       const data = await response.json();
       
-      // If no inventory data exists, initialize it
+      // If no inventory data exists and we're not skipping auto-init, initialize it
       if (!data || data.length === 0) {
-        await initializeInventory();
-        // Reload inventory after initialization
-        const reloadResponse = await fetch('http://localhost:5000/api/inventory', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+        if (!skipAutoInit) {
+          await initializeInventory();
+          // Reload inventory after initialization
+          const reloadResponse = await fetch('http://localhost:5000/api/inventory', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (reloadResponse.ok) {
+            const reloadData = await reloadResponse.json();
+            setInventoryItems(reloadData);
           }
-        });
-        
-        if (reloadResponse.ok) {
-          const reloadData = await reloadResponse.json();
-          setInventoryItems(reloadData);
+        } else {
+          // Just set empty array if we're skipping auto-init
+          setInventoryItems([]);
         }
       } else {
         setInventoryItems(data);
@@ -204,14 +238,62 @@ const Inventory = () => {
 
       const result = await response.json();
       console.log('Inventory initialized:', result.message);
+      
+      // Reload inventory after initialization
+      loadInventory(true);
     } catch (err) {
       console.error('Error initializing inventory:', err);
       setError(err.message);
     }
   };
 
+  // Load available materials and warehouses
+  const loadMaterials = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:5000/api/materials', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const materials = await response.json();
+        setAvailableMaterials(materials);
+      }
+    } catch (err) {
+      console.error('Error loading materials:', err);
+    }
+  };
+
+  const loadWarehouses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:5000/api/warehouses', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const warehouses = await response.json();
+        setAvailableWarehouses(warehouses);
+      }
+    } catch (err) {
+      console.error('Error loading warehouses:', err);
+    }
+  };
+
   useEffect(() => {
     loadInventory();
+    loadMaterials();
+    loadWarehouses();
   }, []);
 
   // Filter inventory items
@@ -320,8 +402,15 @@ const Inventory = () => {
       // Calculate total quantity as sum of available, reserved, and in_transit
       const calculatedQuantity = (editForm.available || 0) + (editForm.reserved || 0) + (editForm.in_transit || 0);
       
+      const warehouseToUse = showNewWarehouseInput ? newWarehouse : editForm.warehouse;
+      if (!warehouseToUse) {
+        setError('Please enter a warehouse name');
+        return;
+      }
+      
       const updateData = {
         ...editForm,
+        warehouse: warehouseToUse,
         quantity: calculatedQuantity
       };
 
@@ -348,12 +437,196 @@ const Inventory = () => {
 
       setShowEditModal(false);
       setEditingItem(null);
+      setShowNewWarehouseInput(false);
+      setNewWarehouse('');
+      
+      // Reload warehouses to include the new one
+      loadWarehouses();
       
     } catch (err) {
       setError(err.message);
       console.error('Error updating inventory:', err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Add new item functionality
+  const handleAddItem = () => {
+    setAddForm({
+      name: '',
+      category: '',
+      warehouse: '',
+      quantity: 0,
+      unit: '',
+      min_stock: 0,
+      max_stock: 0,
+      available: 0,
+      reserved: 0,
+      in_transit: 0
+    });
+    setShowNewWarehouseInput(false);
+    setNewWarehouse('');
+    setShowAddModal(true);
+  };
+
+
+  const handleWarehouseChange = (warehouse) => {
+    if (warehouse === 'add_new') {
+      setShowNewWarehouseInput(true);
+      setAddForm(prev => ({ ...prev, warehouse: '' }));
+    } else {
+      setShowNewWarehouseInput(false);
+      setAddForm(prev => ({ ...prev, warehouse: warehouse }));
+    }
+  };
+
+  const handleSaveNewItem = async () => {
+    if (!addForm.name || !addForm.category || !addForm.warehouse) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    setAdding(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please login to add inventory item');
+        return;
+      }
+
+      const warehouseToUse = showNewWarehouseInput ? newWarehouse : addForm.warehouse;
+      if (!warehouseToUse) {
+        setError('Please enter a warehouse name');
+        return;
+      }
+
+      // Generate material_code from name
+      const material_code = addForm.name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
+
+      const itemData = {
+        ...addForm,
+        material_code: material_code,
+        warehouse: warehouseToUse,
+        quantity: (addForm.available || 0) + (addForm.reserved || 0) + (addForm.in_transit || 0)
+      };
+
+      const response = await fetch('http://localhost:5000/api/inventory', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(itemData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add inventory item');
+      }
+
+      const newItem = await response.json();
+      setInventoryItems(prev => [...prev, newItem]);
+      setShowAddModal(false);
+      
+      // Reload warehouses to include the new one
+      loadWarehouses();
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Error adding inventory item:', err);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // Individual delete functionality
+  const handleDeleteItem = (item) => {
+    setItemToDelete(item);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteItem = async () => {
+    if (!itemToDelete) return;
+    
+    setDeletingItem(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please login to delete inventory item');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:5000/api/inventory/${itemToDelete.material_code}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete inventory item');
+      }
+
+      // Remove item from local state
+      setInventoryItems(prev => prev.filter(item => item.material_code !== itemToDelete.material_code));
+      setShowDeleteModal(false);
+      setItemToDelete(null);
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Error deleting inventory item:', err);
+    } finally {
+      setDeletingItem(false);
+    }
+  };
+
+  // Delete all items functionality
+  const handleDeleteAllItems = () => {
+    setShowDeleteAllModal(true);
+  };
+
+  const confirmDeleteAll = async () => {
+    setDeleting(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please login to delete inventory items');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/inventory/delete-all', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete all inventory items');
+      }
+
+      setInventoryItems([]);
+      setShowDeleteAllModal(false);
+      
+      // Reload inventory to confirm deletion (skip auto-init)
+      loadInventory(true);
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Error deleting all inventory items:', err);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -381,8 +654,10 @@ const Inventory = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-8 py-8">
-          <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
-          <p className="text-gray-600 mt-2">Track material stock levels, monitor consumption, and manage warehouse operations</p>
+          <div className="flex flex-col items-start">
+            <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
+            <p className="text-gray-600 mt-2">Track material stock levels, monitor consumption, and manage warehouse operations</p>
+          </div>
         </div>
       </div>
 
@@ -437,7 +712,31 @@ const Inventory = () => {
             
             <div className="ml-auto flex gap-2">
               <button 
-                onClick={loadInventory}
+                onClick={handleAddItem}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Item
+              </button>
+              {inventoryItems.length === 0 ? (
+                <button 
+                  onClick={initializeInventory}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center gap-2"
+                >
+                  <Package className="h-4 w-4" />
+                  Initialize Inventory
+                </button>
+              ) : (
+                <button 
+                  onClick={handleDeleteAllItems}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete All
+                </button>
+              )}
+              <button 
+                onClick={() => loadInventory(true)}
                 disabled={loading}
                 className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 flex items-center gap-2 disabled:opacity-50"
               >
@@ -604,6 +903,13 @@ const Inventory = () => {
                         <Eye className="h-3 w-3" />
                         View
                       </button>
+                      <button 
+                        onClick={() => handleDeleteItem(item)}
+                        className="flex-1 px-3 py-2 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -738,12 +1044,39 @@ const Inventory = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Warehouse
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={editForm.warehouse}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, warehouse: e.target.value }))}
+                    onChange={(e) => {
+                      if (e.target.value === 'add_new') {
+                        setShowNewWarehouseInput(true);
+                        setEditForm(prev => ({ ...prev, warehouse: '' }));
+                      } else {
+                        setShowNewWarehouseInput(false);
+                        setEditForm(prev => ({ ...prev, warehouse: e.target.value }));
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  >
+                    <option value="">Select Warehouse</option>
+                    {availableWarehouses.map((warehouse) => (
+                      <option key={warehouse} value={warehouse}>
+                        {warehouse}
+                      </option>
+                    ))}
+                    <option value="add_new">+ Add New Warehouse</option>
+                  </select>
+                  
+                  {showNewWarehouseInput && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        value={newWarehouse}
+                        onChange={(e) => setNewWarehouse(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter new warehouse name"
+                      />
+                    </div>
+                  )}
                 </div>
 
               </div>
@@ -947,6 +1280,339 @@ const Inventory = () => {
                   className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Item Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">Add New Inventory Item</h3>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Material Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.name}
+                    onChange={(e) => setAddForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter material name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category *
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.category}
+                    onChange={(e) => setAddForm(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., Structural Materials, Conductors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Warehouse *
+                  </label>
+                  <select
+                    value={addForm.warehouse}
+                    onChange={(e) => handleWarehouseChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Warehouse</option>
+                    {availableWarehouses.map((warehouse) => (
+                      <option key={warehouse} value={warehouse}>
+                        {warehouse}
+                      </option>
+                    ))}
+                    <option value="add_new">+ Add New Warehouse</option>
+                  </select>
+                  
+                  {showNewWarehouseInput && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        value={newWarehouse}
+                        onChange={(e) => setNewWarehouse(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter new warehouse name"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Min Stock
+                    </label>
+                    <input
+                      type="number"
+                      value={addForm.min_stock}
+                      onChange={(e) => setAddForm(prev => ({ ...prev, min_stock: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Max Stock
+                    </label>
+                    <input
+                      type="number"
+                      value={addForm.max_stock}
+                      onChange={(e) => setAddForm(prev => ({ ...prev, max_stock: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Available
+                    </label>
+                    <input
+                      type="number"
+                      value={addForm.available}
+                      onChange={(e) => setAddForm(prev => ({ ...prev, available: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="0"
+                      step="0.01"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Ready for use</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reserved
+                    </label>
+                    <input
+                      type="number"
+                      value={addForm.reserved}
+                      onChange={(e) => setAddForm(prev => ({ ...prev, reserved: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="0"
+                      step="0.01"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Allocated to projects</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      In Transit
+                    </label>
+                    <input
+                      type="number"
+                      value={addForm.in_transit}
+                      onChange={(e) => setAddForm(prev => ({ ...prev, in_transit: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min="0"
+                      step="0.01"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Being delivered</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Unit
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.unit}
+                    onChange={(e) => setAddForm(prev => ({ ...prev, unit: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., tons, pieces, units"
+                  />
+                </div>
+
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-blue-700">Total Quantity (Calculated)</span>
+                    <span className="text-lg font-bold text-blue-800">
+                      {(addForm.available || 0) + (addForm.reserved || 0) + (addForm.in_transit || 0)} {addForm.unit || 'units'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Total = Available + Reserved + In Transit
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveNewItem}
+                  disabled={adding}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {adding ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      Add Item
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Individual Delete Confirmation Modal */}
+      {showDeleteModal && itemToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">Delete Item</h3>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertTriangle className="h-8 w-8 text-red-600" />
+                  <div>
+                    <h4 className="text-lg font-semibold text-red-800">Warning!</h4>
+                    <p className="text-red-700">This action cannot be undone.</p>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-gray-700 mb-2">
+                    Are you sure you want to delete this inventory item?
+                  </p>
+                  <div className="bg-gray-50 rounded-lg p-4 mt-3">
+                    <h5 className="font-semibold text-gray-900">{itemToDelete.name}</h5>
+                    <p className="text-sm text-gray-600">{itemToDelete.category}</p>
+                    <p className="text-xs text-gray-500">Code: {itemToDelete.material_code}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteItem}
+                  disabled={deletingItem}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deletingItem ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Delete Item
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Confirmation Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">Delete All Items</h3>
+                <button
+                  onClick={() => setShowDeleteAllModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertTriangle className="h-8 w-8 text-red-600" />
+                  <div>
+                    <h4 className="text-lg font-semibold text-red-800">Warning!</h4>
+                    <p className="text-red-700">This action cannot be undone.</p>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-gray-700 mb-2">
+                    Are you sure you want to delete all inventory items?
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    This will permanently remove all {inventoryItems.length} items from the database.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowDeleteAllModal(false)}
+                  className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteAll}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Delete All Items
+                    </>
+                  )}
                 </button>
               </div>
             </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, LogIn, UserPlus, Building2, BarChart3, Calendar, FileText, IndianRupee, Shield } from 'lucide-react';
-import ForgotPassword from './ForgotPassword';
+// Forgot password removed
 
 const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }) => {
   const [formData, setFormData] = useState({
@@ -440,7 +440,9 @@ const AuthPage = () => {
   return (
     <>
       {showForgotPassword ? (
-        <ForgotPassword onBackToLogin={() => setShowForgotPassword(false)} />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-red-600">Password reset is currently disabled.</div>
+        </div>
       ) : isLogin ? (
         <Login 
           onSwitchToRegister={() => setIsLogin(false)} 

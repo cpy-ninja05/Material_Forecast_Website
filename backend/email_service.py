@@ -4,26 +4,69 @@
 import os
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
+
+# Ensure .env is loaded even when this module is imported directly
+load_dotenv()
 
 class EmailService:
     def __init__(self):
+        # Do NOT hardcode sender; require FROM_EMAIL from env
         self.sendgrid_api_key = os.getenv('SENDGRID_API_KEY', '')
-        self.from_email = os.getenv('FROM_EMAIL', 'noreply@plangrid.com')
+        self.from_email = os.getenv('FROM_EMAIL', '')
         self.from_name = os.getenv('FROM_NAME', 'PLANGRID Team')
+        self.frontend_base_url = os.getenv('FRONTEND_BASE_URL', 'http://localhost:3000')
+        # Mailgun config (alternative provider)
+        self.mailgun_api_key = os.getenv('MAILGUN_API_KEY', '')
+        self.mailgun_domain = os.getenv('MAILGUN_DOMAIN', '')
+        # Brevo (Sendinblue) HTTP API
+        self.brevo_api_key = os.getenv('BREVO_API_KEY', '')
+        # Generic SMTP (Brevo/Sendinblue, Mailjet, SES SMTP, etc.)
+        self.smtp_host = os.getenv('SMTP_HOST', '')
+        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        self.smtp_user = os.getenv('SMTP_USER', '')
+        self.smtp_pass = os.getenv('SMTP_PASS', '')
+        self.smtp_use_tls = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
+        # Optional fallback toggle: try other providers if one fails
+        self.email_fallback = os.getenv('EMAIL_FALLBACK', 'false').lower() == 'true'
+        # Twilio SMS
+        self.twilio_sid = os.getenv('TWILIO_ACCOUNT_SID', '')
+        self.twilio_token = os.getenv('TWILIO_AUTH_TOKEN', '')
+        self.twilio_from = os.getenv('TWILIO_FROM_NUMBER', '')
         
     def is_configured(self):
         """Check if email service is properly configured"""
-        return bool(self.sendgrid_api_key)
+        return bool((self.brevo_api_key or self.sendgrid_api_key or (self.mailgun_api_key and self.mailgun_domain) or (self.smtp_host and self.smtp_user and self.smtp_pass)) and self.from_email)
+    
+    def _refresh_from_env(self):
+        """Reload env variables in case they were loaded after module import."""
+        self.sendgrid_api_key = os.getenv('SENDGRID_API_KEY', self.sendgrid_api_key)
+        self.from_email = os.getenv('FROM_EMAIL', self.from_email)
+        self.from_name = os.getenv('FROM_NAME', self.from_name)
+        self.frontend_base_url = os.getenv('FRONTEND_BASE_URL', self.frontend_base_url)
+        self.twilio_sid = os.getenv('TWILIO_ACCOUNT_SID', self.twilio_sid)
+        self.twilio_token = os.getenv('TWILIO_AUTH_TOKEN', self.twilio_token)
+        self.twilio_from = os.getenv('TWILIO_FROM_NUMBER', self.twilio_from)
     
     def send_password_reset_email(self, email, reset_token, username):
         """Send password reset email using SendGrid"""
         if not self.is_configured():
-            print(f"SendGrid not configured. Would send reset link to {email}: http://localhost:3000/reset-password?token={reset_token}")
+            # Try lazy refresh once
+            self._refresh_from_env()
+        if not self.is_configured():
+            print("SendGrid not configured. Missing variables:")
+            print("  SENDGRID_API_KEY set:", bool(self.sendgrid_api_key))
+            print("  FROM_EMAIL:", repr(self.from_email))
+            print(f"Would send reset link to {email}: {self.frontend_base_url.rstrip('/')}/reset-password?token={reset_token}")
             return True  # Return True for development purposes
             
         try:
             # Create the email content
-            reset_url = f"http://localhost:3000/reset-password?token={reset_token}"
+            reset_url = f"{self.frontend_base_url.rstrip('/')}/reset-password?token={reset_token}"
             
             # HTML email template
             html_content = f"""
@@ -143,24 +186,120 @@ class EmailService:
             PLANGRID Team
             """
             
-            # Create the email message
-            message = Mail(
-                from_email=(self.from_email, self.from_name),
-                to_emails=email,
-                subject='Password Reset Request - PLANGRID',
-                html_content=html_content,
-                plain_text_content=text_content
-            )
+            # Prefer Brevo HTTP API if configured (more reliable than SMTP)
+            if self.brevo_api_key:
+                try:
+                    resp = requests.post(
+                        "https://api.brevo.com/v3/smtp/email",
+                        headers={
+                            "api-key": self.brevo_api_key,
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "sender": {"email": self.from_email, "name": self.from_name},
+                            "to": [{"email": email}],
+                            "subject": "Password Reset Request - PLANGRID",
+                            "htmlContent": html_content,
+                            "textContent": text_content
+                        },
+                        timeout=20
+                    )
+                    if 200 <= resp.status_code < 300:
+                        print(f"Brevo HTTP sent to {email}. Status: {resp.status_code}")
+                        return True
+                    else:
+                        print(f"Brevo HTTP error {resp.status_code}: {resp.text}")
+                        if not self.email_fallback:
+                            return False
+                except Exception as e:
+                    print(f"Brevo HTTP exception: {e}")
+                    if not self.email_fallback:
+                        return False
+
+            # Next prefer SMTP (e.g., Brevo SMTP) if configured
+            if self.smtp_host and self.smtp_user and self.smtp_pass:
+                try:
+                    msg = MIMEMultipart('alternative')
+                    msg['From'] = f"{self.from_name} <{self.from_email}>"
+                    msg['To'] = email
+                    msg['Subject'] = 'Password Reset Request - PLANGRID'
+                    msg.attach(MIMEText(text_content, 'plain'))
+                    msg.attach(MIMEText(html_content, 'html'))
+                    server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=20)
+                    if self.smtp_use_tls:
+                        server.starttls()
+                    server.login(self.smtp_user, self.smtp_pass)
+                    server.sendmail(self.from_email, [email], msg.as_string())
+                    server.quit()
+                    print(f"SMTP sent to {email} via {self.smtp_host}:{self.smtp_port}")
+                    return True
+                except Exception as e:
+                    print(f"SMTP error: {e}")
+                    # If SMTP was explicitly configured, don't silently fall back unless enabled
+                    if not self.email_fallback:
+                        return False
+
+            # Next, try Mailgun if configured
+            if self.mailgun_api_key and self.mailgun_domain:
+                resp = requests.post(
+                    f"https://api.mailgun.net/v3/{self.mailgun_domain}/messages",
+                    auth=("api", self.mailgun_api_key),
+                    data={
+                        "from": f"{self.from_name} <{self.from_email}>",
+                        "to": [email],
+                        "subject": "Password Reset Request - PLANGRID",
+                        "text": text_content,
+                        "html": html_content,
+                    },
+                    timeout=15,
+                )
+                if resp.status_code >= 200 and resp.status_code < 300:
+                    print(f"Mailgun sent to {email}. Status: {resp.status_code}")
+                    return True
+                else:
+                    print(f"Mailgun error {resp.status_code}: {resp.text}")
+                    if not self.email_fallback:
+                        return False
             
-            # Send the email
-            sg = SendGridAPIClient(api_key=self.sendgrid_api_key)
-            response = sg.send(message)
+            if self.sendgrid_api_key and self.email_fallback:
+                # Create the email message
+                message = Mail(
+                    from_email=(self.from_email, self.from_name),
+                    to_emails=email,
+                    subject='Password Reset Request - PLANGRID',
+                    html_content=html_content,
+                    plain_text_content=text_content
+                )
+                sg = SendGridAPIClient(api_key=self.sendgrid_api_key)
+                response = sg.send(message)
+                print(f"SendGrid sent to {email}. Status: {response.status_code}")
+                return True
             
-            print(f"Password reset email sent to {email}. Status: {response.status_code}")
-            return True
-            
+            return False
         except Exception as e:
-            print(f"Error sending email via SendGrid: {e}")
+            print(f"Error sending password reset email: {e}")
+            return False
+
+    def send_password_reset_sms(self, to_phone: str, reset_token: str, username: str) -> bool:
+        """Send password reset link via SMS using Twilio"""
+        try:
+            self._refresh_from_env()
+            if not (self.twilio_sid and self.twilio_token and self.twilio_from):
+                print("Twilio not configured: missing SID/token/from number")
+                return False
+            from twilio.rest import Client
+            client = Client(self.twilio_sid, self.twilio_token)
+            reset_url = f"{self.frontend_base_url.rstrip('/')}/reset-password?token={reset_token}"
+            body = f"PLANGRID: Hi {username}, reset your password: {reset_url} (valid 1 hr)"
+            msg = client.messages.create(
+                body=body,
+                from_=self.twilio_from,
+                to=to_phone
+            )
+            print(f"Twilio SMS sent id: {msg.sid}")
+            return True
+        except Exception as e:
+            print(f"Twilio SMS error: {e}")
             return False
 
 # Global email service instance

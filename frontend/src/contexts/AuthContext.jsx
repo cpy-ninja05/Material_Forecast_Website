@@ -78,48 +78,12 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const forgotPassword = async (email) => {
-    try {
-      const response = await axios.post('http://localhost:5000/api/forgot-password', {
-        email
-      });
-      return { success: true, message: response.data.message };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Failed to send reset email' 
-      };
-    }
-  };
+  // Forgot-password feature disabled
+  const forgotPassword = async () => ({ success: false, error: 'Feature disabled' });
 
-  const resetPassword = async (token, newPassword) => {
-    try {
-      const response = await axios.post('http://localhost:5000/api/reset-password', {
-        token,
-        new_password: newPassword
-      });
-      return { success: true, message: response.data.message };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Failed to reset password' 
-      };
-    }
-  };
+  const resetPassword = async () => ({ success: false, error: 'Feature disabled' });
 
-  const verifyResetToken = async (token) => {
-    try {
-      const response = await axios.post('http://localhost:5000/api/verify-reset-token', {
-        token
-      });
-      return { success: true, valid: response.data.valid, email: response.data.email };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Failed to verify token' 
-      };
-    }
-  };
+  const verifyResetToken = async () => ({ success: false, error: 'Feature disabled' });
 
   const value = {
     user,

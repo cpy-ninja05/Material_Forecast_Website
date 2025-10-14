@@ -19,6 +19,15 @@ const Dashboard = () => {
   const [dashboardMetrics, setDashboardMetrics] = useState(null);
   const [selectedProjectId, setSelectedProjectId] = useState('');
 
+  // Dynamic greeting based on local time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Good Morning';
+    if (hour >= 12 && hour < 17) return 'Good Afternoon';
+    if (hour >= 17 && hour < 21) return 'Good Evening';
+    return 'Good Night';
+  };
+
   useEffect(() => { 
     load(); 
     
@@ -336,14 +345,14 @@ const Dashboard = () => {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="px-8 py-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Good Morning, {user?.username || 'User'}!</h1>
-              <p className="text-gray-600 mt-2">Here's what's happening with your materials forecasting platform today.</p>
+          <div className="flex flex-col items-start">
+            <div className="text-left w-full">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{getGreeting()}, {user?.username || 'User'}!</h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">Here's what's happening with your materials forecasting platform today.</p>
             </div>
           </div>
         </div>
@@ -352,56 +361,56 @@ const Dashboard = () => {
       <div className="p-8 space-y-8">
         {/* Top Row Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">TOTAL PROJECTS</p>
-                <p className="text-3xl font-bold text-gray-900">{getTotalProjects()}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">TOTAL PROJECTS</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{getTotalProjects()}</p>
                 <p className="text-sm text-green-600">+{dashboardMetrics?.projects_this_month ?? 0} this month</p>
               </div>
               <Building className="h-8 w-8 text-blue-600" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">ACTIVE PROJECTS</p>
-                <p className="text-3xl font-bold text-gray-900">{getActiveProjects()}</p>
-                <p className="text-sm text-gray-600">Currently running</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">ACTIVE PROJECTS</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{getActiveProjects()}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Currently running</p>
               </div>
               <Clock className="h-8 w-8 text-orange-600" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">FORECAST ACCURACY</p>
-                <p className="text-3xl font-bold text-gray-900">{calculateForecastAccuracy()}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">FORECAST ACCURACY</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{calculateForecastAccuracy()}</p>
                 <p className="text-sm text-green-600">Average across all projects</p>
               </div>
               <TrendingUp className="h-8 w-8 text-green-600" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">PENDING ORDERS</p>
-                <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.pending_orders || 0}</p>
-                <p className="text-sm text-gray-600">Awaiting approval</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">PENDING ORDERS</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{dashboardMetrics?.pending_orders || 0}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Awaiting approval</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-purple-600" />
             </div>
           </div>
 
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">TOTAL ORDERS</p>
-                <p className="text-3xl font-bold text-gray-900">{dashboardMetrics?.total_orders || 0}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">TOTAL ORDERS</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{dashboardMetrics?.total_orders || 0}</p>
                 <p className="text-sm text-green-600">All time orders</p>
               </div>
               <Package className="h-8 w-8 text-indigo-600" />
@@ -412,14 +421,14 @@ const Dashboard = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Forecast vs Actual Trends */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Actual vs Forecasted Demands</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Actual vs Forecasted Demands</h3>
                 {trendData.length > 0 && (
                   <div className="flex items-center mt-1">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-gray-600 dark:text-gray-300">
                       Showing material demand trends over time
                       {refreshing && <span className="ml-2 text-blue-600">• Refreshing...</span>}
                     </span>
@@ -462,16 +471,16 @@ const Dashboard = () => {
                       <stop offset="95%" stopColor="#22c55e" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
                     dataKey="month" 
-                    stroke="#6b7280"
+                    stroke="#9ca3af"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis 
-                    stroke="#6b7280"
+                    stroke="#9ca3af"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
@@ -479,8 +488,8 @@ const Dashboard = () => {
                   />
                   <Tooltip 
                     contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e5e7eb',
+                      backgroundColor: 'rgba(31,41,55,0.95)',
+                      border: '1px solid #374151',
                       borderRadius: '8px',
                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }}
@@ -491,7 +500,7 @@ const Dashboard = () => {
                       ];
                     }}
                     labelFormatter={(label) => `Month: ${label}`}
-                    labelStyle={{ color: '#374151', fontWeight: '600' }}
+                    labelStyle={{ color: '#e5e7eb', fontWeight: '600' }}
                   />
                   <Area
                     type="monotone"
