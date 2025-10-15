@@ -34,9 +34,30 @@ app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', '')
 app.config['MAIL_MAX_EMAILS'] = int(os.getenv('MAIL_MAX_EMAILS', '100'))
+# Add timeout to prevent worker timeout issues
+app.config['MAIL_TIMEOUT'] = int(os.getenv('MAIL_TIMEOUT', '10'))
 
 jwt = JWTManager(app)
 mail = Mail(app)
+
+# Helper function to send emails asynchronously to prevent blocking
+def send_async_email(app, msg):
+    """Send email in background thread with timeout"""
+    with app.app_context():
+        try:
+            # Set socket timeout to prevent hanging
+            import socket
+            original_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(10)  # 10 second timeout
+            
+            mail.send(msg)
+            print(f"Email sent successfully to {msg.recipients}")
+            
+            socket.setdefaulttimeout(original_timeout)
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+            import traceback
+            traceback.print_exc()
 # Configure CORS for production deployment - more permissive for debugging
 CORS(app, 
      resources={r"/api/*": {
@@ -406,17 +427,15 @@ def forgot_password():
         PlanGrid Team
         """
         
-        try:
-            mail.send(msg)
-            print(f"Password reset email sent successfully to {email}")
-            return jsonify({'message': 'Password reset email sent successfully'}), 200
-        except Exception as mail_error:
-            # Log the specific email error but still return success to prevent email enumeration
-            print(f"Failed to send email to {email}: {mail_error}")
-            import traceback
-            traceback.print_exc()
-            # Return success anyway for security (don't reveal if email exists)
-            return jsonify({'message': 'If the email exists, a password reset link has been sent'}), 200
+        # Send email asynchronously in background thread to prevent blocking
+        from threading import Thread
+        email_thread = Thread(target=send_async_email, args=(app, msg))
+        email_thread.daemon = True
+        email_thread.start()
+        
+        # Return immediately without waiting for email to send
+        print(f"Password reset email queued for {email}")
+        return jsonify({'message': 'Password reset email sent successfully'}), 200
         
     except Exception as e:
         print(f"Error in forgot-password endpoint: {e}")
@@ -2625,14 +2644,13 @@ def invite_team_member(team_id):
         PlanGrid Team
         """
         
-        try:
-            mail.send(msg)
-            print(f"Team invitation sent successfully to {email}")
-        except Exception as mail_error:
-            print(f"Failed to send invitation email to {email}: {mail_error}")
-            import traceback
-            traceback.print_exc()
-            # Continue anyway - invitation is created
+        # Send email asynchronously in background thread to prevent blocking
+        from threading import Thread
+        email_thread = Thread(target=send_async_email, args=(app, msg))
+        email_thread.daemon = True
+        email_thread.start()
+        
+        print(f"Team invitation email queued for {email}")
         
         return jsonify({
             'message': 'Invitation sent successfully',
