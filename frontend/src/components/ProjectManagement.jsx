@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Building, MapPin, Calendar, DollarSign, TrendingUp, Plus, Edit, Eye, BarChart3, Grid3X3, AlertCircle, CheckCircle, Clock, Save, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import axios from 'axios';
+import { showToast } from '../utils/toast';
 
 // Edit Project Form Component
 const EditProjectForm = ({ project, onSave, onCancel }) => {
@@ -884,7 +885,7 @@ const ProjectManagement = () => {
       );
 
       if (response.status === 201) {
-        alert('Team invitation sent successfully!');
+        showToast.success('Team invitation sent successfully!');
         closeTeamInviteModal();
       }
     } catch (error) {
@@ -905,10 +906,10 @@ const ProjectManagement = () => {
       );
       
         setShowEditModal(false);
-      alert('Project updated successfully!');
+      showToast.success('Project updated successfully!');
     } catch (error) {
       console.error('Failed to update project:', error);
-      alert('Failed to update project. Please try again.');
+      showToast.error('Failed to update project. Please try again.');
     }
   };
 
@@ -922,10 +923,10 @@ const ProjectManagement = () => {
       );
       
       setShowDeleteModal(false);
-      alert('Project deleted successfully!');
+      showToast.success('Project deleted successfully!');
       } catch (error) {
       console.error('Failed to delete project:', error);
-      alert('Failed to delete project. Please try again.');
+      showToast.error('Failed to delete project. Please try again.');
     }
   };
 
@@ -937,10 +938,10 @@ const ProjectManagement = () => {
       setProjects(prevProjects => [...prevProjects, response.data]);
       
       setShowCreateModal(false);
-      alert('Project created successfully!');
+      showToast.success('Project created successfully!');
     } catch (error) {
       console.error('Failed to create project:', error);
-      alert('Failed to create project. Please try again.');
+      showToast.error('Failed to create project. Please try again.');
     }
   };
 
@@ -1078,15 +1079,6 @@ const ProjectManagement = () => {
                       {project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Not set'}
                     </span>
                   </div>
-                  {projectForecasts[project.project_id] && projectForecasts[project.project_id].length > 0 && (
-                    <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Latest Forecast</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-300">
-                        {projectForecasts[project.project_id][0].forecast_month} - 
-                        Steel: {projectForecasts[project.project_id][0].predictions?.quantity_steel_tons?.toFixed(1)} tons
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex gap-2">
@@ -1564,7 +1556,7 @@ const ProjectManagement = () => {
                 onClick={async () => {
                   try {
                     await saveMaterialActuals(selectedProject.project_id, materialActualValues);
-                    alert('Material values saved successfully!');
+                    showToast.success('Material values saved successfully!');
                     
                     // Trigger dashboard refresh
                     window.dispatchEvent(new CustomEvent('dashboardRefresh'));
@@ -1574,7 +1566,7 @@ const ProjectManagement = () => {
                   } catch (error) {
                     console.error('Save error:', error);
                     const errorMessage = error.response?.data?.error || error.message || 'Failed to save material values. Please try again.';
-                    alert(`Error: ${errorMessage}`);
+                    showToast.error(errorMessage);
                   }
                 }}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

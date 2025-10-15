@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { showToast } from '../utils/toast';
 
 const TeamInvitation = () => {
   const { user, refreshUser } = useAuth();
@@ -56,10 +57,10 @@ const TeamInvitation = () => {
       await refreshUser();
       
       if (isProjectInvitation) {
-        alert('Successfully joined the project!');
+        showToast.success('Successfully joined the project!');
         navigate('/projects');
       } else {
-        alert('Successfully joined the team!');
+        showToast.success('Successfully joined the team!');
         navigate('/teams');
       }
     } catch (error) {

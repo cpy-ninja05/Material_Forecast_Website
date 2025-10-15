@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import { Building, Users, MapPin, Calendar, DollarSign, Eye } from 'lucide-react';
+import { Building, Users, MapPin, Calendar, DollarSign, Eye, Trash2 } from 'lucide-react';
+import { showToast } from '../utils/toast';
 
 const Teams = () => {
   const { user } = useAuth();
@@ -44,7 +45,7 @@ const Teams = () => {
       setShowProjectDetailsModal(true);
     } catch (error) {
       console.error('Error fetching project details:', error);
-      alert('Failed to load project details');
+      showToast.error('Failed to load project details');
     }
   };
 
@@ -57,14 +58,14 @@ const Teams = () => {
       });
       
       if (response.data.created_teams.length > 0) {
-        alert(`Created ${response.data.created_teams.length} teams for existing projects!`);
+        showToast.success(`Created ${response.data.created_teams.length} teams for existing projects!`);
         fetchTeams(); // Refresh teams list
       } else {
-        alert('All projects already have teams assigned.');
+        showToast.info('All projects already have teams assigned.');
       }
     } catch (error) {
       console.error('Error creating teams for existing projects:', error);
-      alert('Failed to create teams for existing projects');
+      showToast.error('Failed to create teams for existing projects');
     }
   };
 
@@ -86,12 +87,12 @@ const Teams = () => {
     console.log('Sending team invitation...', inviteForm, selectedTeam);
     
     if (!inviteForm.email) {
-      alert('Email is required');
+      showToast.error('Email is required');
       return;
     }
 
     if (!selectedTeam || !selectedTeam.team_id) {
-      alert('No team selected');
+      showToast.error('No team selected');
       return;
     }
 
@@ -113,20 +114,20 @@ const Teams = () => {
       console.log('Invitation response:', response);
       
       if (response.status === 201) {
-        alert('Team invitation sent successfully!');
+        showToast.success('Team invitation sent successfully!');
         closeTeamInviteModal();
         fetchTeams(); // Refresh teams list
       } else {
-        alert('Unexpected response status: ' + response.status);
+        showToast.warning('Unexpected response status: ' + response.status);
       }
     } catch (error) {
       console.error('Error sending team invitation:', error);
       if (error.response) {
-        alert(`Error: ${error.response.data?.error || error.response.statusText}`);
+        showToast.error(error.response.data?.error || error.response.statusText);
       } else if (error.request) {
-        alert('Network error: Could not reach the server');
+        showToast.error('Network error: Could not reach the server');
       } else {
-        alert('Error: ' + error.message);
+        showToast.error('Error: ' + error.message);
       }
     } finally {
       setInviteLoading(false);
@@ -139,20 +140,22 @@ const Teams = () => {
       await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/teams`, createForm);
       setCreateForm({ name: '', description: '' });
       setShowCreateModal(false);
+      showToast.success('Team created successfully!');
       fetchTeams();
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to create team');
+      showToast.error(error.response?.data?.error || 'Failed to create team');
     }
   };
 
   const removeMember = async (memberUsername) => {
-    if (!confirm(`Are you sure you want to remove ${memberUsername} from the team?`)) return;
+    if (!window.confirm(`Are you sure you want to remove ${memberUsername} from the team?`)) return;
     
     try {
       await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/api/teams/${selectedTeam.team_id}/members/${memberUsername}`);
+      showToast.success('Member removed successfully');
       fetchTeamDetails(selectedTeam);
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to remove member');
+      showToast.error(error.response?.data?.error || 'Failed to remove member');
     }
   };
 
@@ -168,6 +171,30 @@ const Teams = () => {
   const canManageTeam = (team) => {
     const userMember = team.members.find(m => m.username === user.username);
     return userMember && ['owner', 'admin'].includes(userMember.role);
+  };
+
+  const isTeamOwner = (team) => {
+    const userMember = team.members.find(m => m.username === user.username);
+    return userMember && userMember.role === 'owner';
+  };
+
+  const deleteTeam = async (team) => {
+    if (!window.confirm(`Are you sure you want to delete the team "${team.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/api/teams/${team.team_id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      showToast.success('Team deleted successfully');
+      fetchTeams(); // Refresh teams list
+    } catch (error) {
+      console.error('Error deleting team:', error);
+      showToast.error(error.response?.data?.error || 'Failed to delete team');
+    }
   };
 
   if (loading) {
@@ -211,71 +238,93 @@ const Teams = () => {
       {/* Teams Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {teams.map((team) => (
-          <div key={team.team_id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{team.name}</h3>
-              <span className="text-sm text-gray-500 dark:text-gray-400">{team.members.length} members</span>
-            </div>
-            
-            {team.description && (
-              <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">{team.description}</p>
-            )}
-
-            {/* Project Information */}
-            {team.project_name && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <Building className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  <h4 className="text-sm font-medium text-blue-900 dark:text-blue-300">Associated Project</h4>
+          <div key={team.team_id} className="group bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {/* Card Header with Gradient */}
+            <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 dark:from-blue-700 dark:via-blue-600 dark:to-indigo-700 p-6 relative overflow-hidden">
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-12 -mb-12"></div>
+              
+              <div className="relative z-10">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1 min-w-0 pr-2 text-left">
+                    <h3 className="text-2xl font-bold text-white mb-2 truncate text-left">{team.name}</h3>
+                    {team.description && (
+                      <p className="text-blue-50/90 text-sm leading-relaxed line-clamp-2 mb-3 text-left">{team.description}</p>
+                    )}
+                    {team.project_id && (
+                      <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-md">
+                        <span className="text-xs text-blue-50 font-mono text-left">{team.project_id}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-start gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-sm">
+                      <Users className="h-4 w-4 text-white" />
+                      <span className="text-sm font-bold text-white">{team.members.length}</span>
+                    </div>
+                    {isTeamOwner(team) && (
+                      <button
+                        onClick={() => deleteTeam(team)}
+                        className="p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-all duration-200 shadow-sm"
+                        title="Delete team"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{team.project_name}</p>
-                {team.project_id && (
-                  <p className="text-xs text-gray-600 dark:text-gray-400">ID: {team.project_id}</p>
+              </div>
+            </div>
+
+            {/* Card Body */}
+            <div className="p-6 -mt-4 text-left">
+              {/* Team Members */}
+              <div className="mb-5">
+                <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 text-left">Team Members</h5>
+                <div className="flex flex-wrap gap-2 justify-start">
+                  {team.members.slice(0, 3).map((member) => (
+                    <span
+                      key={member.username}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm ${getRoleColor(member.role)} border border-gray-200 dark:border-gray-600 text-left`}
+                    >
+                      {member.username}
+                    </span>
+                  ))}
+                  {team.members.length > 3 && (
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-500 shadow-sm text-left">
+                      +{team.members.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-2 justify-start">
+                {canManageTeam(team) && (
+                  <button
+                    onClick={() => openTeamInviteModal(team)}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 dark:from-blue-500 dark:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 text-white px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-center"
+                  >
+                    Invite
+                  </button>
+                )}
+                
+                {/* View Project Button for teams with associated projects */}
+                {team.project_name && (
+                  <button
+                    onClick={() => {
+                      viewProjectDetails(team.project_id);
+                    }}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 dark:from-green-500 dark:to-green-600 dark:hover:from-green-600 dark:hover:to-green-700 text-white px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View Project
+                  </button>
                 )}
               </div>
-            )}
-            
-            <div className="flex flex-wrap gap-2 mb-4">
-              {team.members.slice(0, 3).map((member) => (
-                <span
-                  key={member.username}
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}
-                >
-                  {member.username}
-                </span>
-              ))}
-              {team.members.length > 3 && (
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                  +{team.members.length - 3} more
-                </span>
-              )}
             </div>
-            
-            <div className="flex gap-2">
-              {canManageTeam(team) && (
-                <button
-                  onClick={() => openTeamInviteModal(team)}
-                  className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors text-sm"
-                >
-                  Invite
-                </button>
-              )}
-            </div>
-            
-            {/* View Project Button for teams with associated projects */}
-            {team.project_name && (
-              <div className="mt-2">
-                <button
-                  onClick={() => {
-                    viewProjectDetails(team.project_id);
-                  }}
-                  className="w-full bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors text-sm flex items-center justify-center gap-1"
-                >
-                  <Eye className="h-4 w-4" />
-                  View Project
-                </button>
-              </div>
-            )}
           </div>
         ))}
       </div>

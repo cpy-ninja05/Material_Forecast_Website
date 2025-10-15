@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import DataTable from './ui/DataTable';
 import { useAuth } from '../contexts/AuthContext';
+import { showToast } from '../utils/toast';
 
 const PlanningApprovals = () => {
   const { user } = useAuth();
@@ -38,8 +39,9 @@ const PlanningApprovals = () => {
       await axios.post('http://localhost:5000/api/projects', projectForm);
       setProjectForm({ name: '', region: 'North', corridor_voltage_kv: 765, technology: 'AC', length_km: 100, substation_type: 'AIS', budget: 30000000 });
       fetchAll();
+      showToast.success('Project created successfully!');
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to create project');
+      showToast.error(e.response?.data?.error || 'Failed to create project');
     }
   };
 
@@ -49,8 +51,9 @@ const PlanningApprovals = () => {
       await axios.post('http://localhost:5000/api/permits', permitForm);
       setPermitForm({ project_id: '', permit_type: 'RoW', status: 'submitted', doc_url: '', remarks: '' });
       fetchAll();
+      showToast.success('Permit created successfully!');
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to create permit');
+      showToast.error(e.response?.data?.error || 'Failed to create permit');
     }
   };
 
@@ -65,8 +68,9 @@ const PlanningApprovals = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setPermitForm(prev => ({ ...prev, doc_url: res.data.url }));
+      showToast.success('File uploaded successfully!');
     } catch (err) {
-      alert(err.response?.data?.error || 'Upload failed');
+      showToast.error(err.response?.data?.error || 'Upload failed');
     } finally {
       setUploading(false);
     }

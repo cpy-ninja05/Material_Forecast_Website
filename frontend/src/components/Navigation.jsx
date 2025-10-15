@@ -22,7 +22,6 @@ const Navigation = () => {
     { name: 'Procurement', href: '/procurement', icon: ShoppingCart },
     { name: 'Inventory', href: '/inventory', icon: Boxes },
     { name: 'Teams', href: '/teams', icon: Users },
-    { name: 'Notifications', href: '/notifications', icon: Bell },
   ];
 
   // Load saved sidebar state from localStorage

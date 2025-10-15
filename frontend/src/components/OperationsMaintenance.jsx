@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import DataTable from './ui/DataTable';
 import { useAuth } from '../contexts/AuthContext';
+import { showToast } from '../utils/toast';
 
 const OperationsMaintenance = () => {
   const { user } = useAuth();
@@ -38,8 +39,9 @@ const OperationsMaintenance = () => {
       await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/assets`, assetForm);
       setAssetForm({ project_id: '', asset_type: 'tower', name: '', status: 'planned', location: '', voltage_kv: 132, specs: '' });
       fetchAll();
+      showToast.success('Asset created successfully!');
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to create asset');
+      showToast.error(e.response?.data?.error || 'Failed to create asset');
     }
   };
 
@@ -49,8 +51,9 @@ const OperationsMaintenance = () => {
       await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/outages`, outageForm);
       setOutageForm({ asset_id: '', start_time: '', end_time: '', cause: '', severity: 'low', remarks: '' });
       fetchAll();
+      showToast.success('Outage logged successfully!');
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to log outage');
+      showToast.error(e.response?.data?.error || 'Failed to log outage');
     }
   };
 
