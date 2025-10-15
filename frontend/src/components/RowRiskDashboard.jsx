@@ -96,11 +96,7 @@ const RowRiskDashboard = () => {
     { name: 'High Risk', value: analytics.risk_distribution.high, color: '#ef4444' },
     { name: 'Medium Risk', value: analytics.risk_distribution.medium, color: '#f59e0b' },
     { name: 'Low Risk', value: analytics.risk_distribution.low, color: '#10b981' }
-  ] : [
-    { name: 'High Risk', value: 8, color: '#ef4444' },
-    { name: 'Medium Risk', value: 15, color: '#f59e0b' },
-    { name: 'Low Risk', value: 12, color: '#10b981' }
-  ];
+  ] : [];
 
   const stateRiskData = analytics ? Object.entries(analytics.risk_by_state)
     .map(([state, data]) => ({
@@ -113,20 +109,7 @@ const RowRiskDashboard = () => {
     .sort((a, b) => b.total - a.total)
     .slice(0, 8) : [];
 
-  // Add sample data if no real data is available for better visualization
-  const hasRealData = analytics && analytics.risk_by_state && Object.keys(analytics.risk_by_state).length > 0;
-  const sampleStateData = [
-    { state: 'Maharashtra', high: 3, medium: 5, low: 2, total: 10 },
-    { state: 'Karnataka', high: 2, medium: 4, low: 3, total: 9 },
-    { state: 'Tamil Nadu', high: 1, medium: 6, low: 2, total: 9 },
-    { state: 'Gujarat', high: 2, medium: 3, low: 4, total: 9 },
-    { state: 'Rajasthan', high: 1, medium: 4, low: 3, total: 8 },
-    { state: 'West Bengal', high: 3, medium: 2, low: 2, total: 7 },
-    { state: 'Uttar Pradesh', high: 2, medium: 3, low: 1, total: 6 },
-    { state: 'Delhi', high: 1, medium: 2, low: 2, total: 5 }
-  ];
-
-  const finalStateData = hasRealData ? stateRiskData : sampleStateData;
+  const finalStateData = stateRiskData;
 
   if (loading) {
     return (
