@@ -39,15 +39,19 @@ jwt = JWTManager(app)
 mail = Mail(app)
 # Configure CORS for production deployment - more permissive for debugging
 CORS(app, 
-     origins=[
-         "http://localhost:3000",  # Local development (React default)
-         "http://localhost:5173",  # Local development (Vite default)
-         "https://material-forecast-website.onrender.com",  # Production frontend
-         "https://material-forecast-website-be.onrender.com"  # Production backend (if needed)
-     ],
-     supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+     resources={r"/api/*": {
+         "origins": [
+             "http://localhost:3000",  # Local development (React default)
+             "http://localhost:5173",  # Local development (Vite default)
+             "https://material-forecast-website.onrender.com",  # Production frontend
+             "https://material-forecast-website-be.onrender.com"  # Production backend (if needed)
+         ],
+         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         "allow_headers": ["Content-Type", "Authorization"],
+         "supports_credentials": True,
+         "expose_headers": ["Content-Type", "Authorization"],
+         "max_age": 3600
+     }}
 )
 
 # Manual CORS handler as fallback
@@ -66,8 +70,31 @@ def after_request(response):
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Max-Age'] = '3600'
     
     return response
+
+# Handle preflight requests globally
+@app.before_request
+def handle_preflight():
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        origin = request.headers.get('Origin')
+        allowed_origins = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "https://material-forecast-website.onrender.com",
+            "https://material-forecast-website-be.onrender.com"
+        ]
+        
+        if origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Max-Age'] = '3600'
+        
+        return response, 200
 
 # Initialize MongoDB
 def init_db():
