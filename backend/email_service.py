@@ -301,6 +301,118 @@ class EmailService:
         except Exception as e:
             print(f"Twilio SMS error: {e}")
             return False
+    
+    def send_generic_email(self, to_email: str, subject: str, html_content: str, text_content: str = None) -> bool:
+        """Send a generic email using configured email service"""
+        if not self.is_configured():
+            # Try lazy refresh once
+            self._refresh_from_env()
+        if not self.is_configured():
+            print("Email service not configured. Missing variables:")
+            print("  API keys configured:", bool(self.sendgrid_api_key or self.brevo_api_key or self.mailgun_api_key or self.smtp_host))
+            print("  FROM_EMAIL:", repr(self.from_email))
+            print(f"Would send email to {to_email} with subject: {subject}")
+            return True  # Return True for development purposes
+            
+        try:
+            # Use text_content if provided, otherwise create a simple text version
+            if not text_content:
+                # Simple HTML to text conversion - strip tags
+                import re
+                text_content = re.sub(r'<[^>]+>', '', html_content)
+            
+            # Prefer Brevo HTTP API if configured
+            if self.brevo_api_key:
+                try:
+                    resp = requests.post(
+                        "https://api.brevo.com/v3/smtp/email",
+                        headers={
+                            "api-key": self.brevo_api_key,
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "sender": {"email": self.from_email, "name": self.from_name},
+                            "to": [{"email": to_email}],
+                            "subject": subject,
+                            "htmlContent": html_content,
+                            "textContent": text_content
+                        },
+                        timeout=20
+                    )
+                    if 200 <= resp.status_code < 300:
+                        print(f"Brevo HTTP sent to {to_email}. Status: {resp.status_code}")
+                        return True
+                    else:
+                        print(f"Brevo HTTP error {resp.status_code}: {resp.text}")
+                        if not self.email_fallback:
+                            return False
+                except Exception as e:
+                    print(f"Brevo HTTP exception: {e}")
+                    if not self.email_fallback:
+                        return False
+
+            # Try SMTP if configured
+            if self.smtp_host and self.smtp_user and self.smtp_pass:
+                try:
+                    msg = MIMEMultipart('alternative')
+                    msg['From'] = f"{self.from_name} <{self.from_email}>"
+                    msg['To'] = to_email
+                    msg['Subject'] = subject
+                    msg.attach(MIMEText(text_content, 'plain'))
+                    msg.attach(MIMEText(html_content, 'html'))
+                    server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=20)
+                    if self.smtp_use_tls:
+                        server.starttls()
+                    server.login(self.smtp_user, self.smtp_pass)
+                    server.sendmail(self.from_email, [to_email], msg.as_string())
+                    server.quit()
+                    print(f"SMTP sent to {to_email} via {self.smtp_host}:{self.smtp_port}")
+                    return True
+                except Exception as e:
+                    print(f"SMTP error: {e}")
+                    if not self.email_fallback:
+                        return False
+
+            # Try Mailgun if configured
+            if self.mailgun_api_key and self.mailgun_domain:
+                resp = requests.post(
+                    f"https://api.mailgun.net/v3/{self.mailgun_domain}/messages",
+                    auth=("api", self.mailgun_api_key),
+                    data={
+                        "from": f"{self.from_name} <{self.from_email}>",
+                        "to": [to_email],
+                        "subject": subject,
+                        "text": text_content,
+                        "html": html_content,
+                    },
+                    timeout=15,
+                )
+                if resp.status_code >= 200 and resp.status_code < 300:
+                    print(f"Mailgun sent to {to_email}. Status: {resp.status_code}")
+                    return True
+                else:
+                    print(f"Mailgun error {resp.status_code}: {resp.text}")
+                    if not self.email_fallback:
+                        return False
+            
+            # Try SendGrid as fallback
+            if self.sendgrid_api_key and self.email_fallback:
+                message = Mail(
+                    from_email=(self.from_email, self.from_name),
+                    to_emails=to_email,
+                    subject=subject,
+                    html_content=html_content,
+                    plain_text_content=text_content
+                )
+                sg = SendGridAPIClient(api_key=self.sendgrid_api_key)
+                response = sg.send(message)
+                print(f"SendGrid sent to {to_email}. Status: {response.status_code}")
+                return True
+            
+            return False
+        except Exception as e:
+            print(f"Error sending email: {e}")
+            return False
 
 # Global email service instance
 email_service = EmailService()

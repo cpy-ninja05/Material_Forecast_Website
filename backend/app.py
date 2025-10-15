@@ -298,7 +298,6 @@ def forgot_password():
         
         # Send email using Flask-Mail
         frontend_url = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173')
-        # Ensure URL doesn't end with slash and construct reset URL
         frontend_url = frontend_url.rstrip('/')
         reset_url = f"{frontend_url}/reset-password?token={reset_token}"
         
@@ -345,12 +344,6 @@ def forgot_password():
                     border-radius: 6px;
                     margin: 20px 0;
                     font-weight: bold;
-                    border: 2px solid #2563eb;
-                    transition: all 0.3s ease;
-                }}
-                .button:hover {{
-                    background: #1d4ed8;
-                    border-color: #1d4ed8;
                 }}
                 .warning {{
                     background: #fef3c7;
@@ -413,12 +406,23 @@ def forgot_password():
         PlanGrid Team
         """
         
-        mail.send(msg)
-        return jsonify({'message': 'Password reset email sent successfully'}), 200
+        try:
+            mail.send(msg)
+            print(f"Password reset email sent successfully to {email}")
+            return jsonify({'message': 'Password reset email sent successfully'}), 200
+        except Exception as mail_error:
+            # Log the specific email error but still return success to prevent email enumeration
+            print(f"Failed to send email to {email}: {mail_error}")
+            import traceback
+            traceback.print_exc()
+            # Return success anyway for security (don't reveal if email exists)
+            return jsonify({'message': 'If the email exists, a password reset link has been sent'}), 200
         
     except Exception as e:
-        print(f"Error sending password reset email: {e}")
-        return jsonify({'error': 'Failed to send reset email. Please try again later.'}), 500
+        print(f"Error in forgot-password endpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to process password reset request. Please try again later.'}), 500
 
 @app.route('/api/reset-password', methods=['POST'])
 def reset_password():
@@ -2605,7 +2609,30 @@ def invite_team_member(team_id):
         </html>
         """
         
-        mail.send(msg)
+        msg.body = f"""
+        You've been invited to join a team!
+        
+        Team: {team['name']}
+        Role: {role.title()}
+        Invited by: {username}
+        
+        Click the link below to accept the invitation:
+        {invitation_url}
+        
+        This invitation will expire in 7 days.
+        
+        Best regards,
+        PlanGrid Team
+        """
+        
+        try:
+            mail.send(msg)
+            print(f"Team invitation sent successfully to {email}")
+        except Exception as mail_error:
+            print(f"Failed to send invitation email to {email}: {mail_error}")
+            import traceback
+            traceback.print_exc()
+            # Continue anyway - invitation is created
         
         return jsonify({
             'message': 'Invitation sent successfully',
@@ -2614,6 +2641,8 @@ def invite_team_member(team_id):
         
     except Exception as e:
         print(f"Error sending team invitation: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Failed to send invitation'}), 500
 
 @app.route('/api/teams/invitations/<invitation_token>', methods=['GET'])
