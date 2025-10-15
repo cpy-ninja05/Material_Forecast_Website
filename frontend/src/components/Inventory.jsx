@@ -253,7 +253,7 @@ const Inventory = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/materials', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/materials`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -274,7 +274,7 @@ const Inventory = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/warehouses', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/warehouses`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -428,17 +428,14 @@ const Inventory = () => {
         throw new Error(errorData.error || 'Failed to update inventory');
       }
 
-      // Update local state with calculated quantity
-      setInventoryItems(prev => prev.map(item => 
-        item.material_code === editingItem.material_code 
-          ? { ...item, ...updateData, updated_at: new Date().toISOString() }
-          : item
-      ));
-
+      // Close modal first
       setShowEditModal(false);
       setEditingItem(null);
       setShowNewWarehouseInput(false);
       setNewWarehouse('');
+      
+      // Reload inventory to get fresh data from database
+      await loadInventory(true);
       
       // Reload warehouses to include the new one
       loadWarehouses();
@@ -528,8 +525,15 @@ const Inventory = () => {
       }
 
       const newItem = await response.json();
-      setInventoryItems(prev => [...prev, newItem]);
+      console.log('New item added:', newItem);
+      
+      // Close modal first
       setShowAddModal(false);
+      setShowNewWarehouseInput(false);
+      setNewWarehouse('');
+      
+      // Reload inventory to get fresh data from database
+      await loadInventory(true);
       
       // Reload warehouses to include the new one
       loadWarehouses();

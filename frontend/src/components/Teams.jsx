@@ -57,15 +57,36 @@ const Teams = () => {
         }
       });
       
-      if (response.data.created_teams.length > 0) {
-        showToast.success(`Created ${response.data.created_teams.length} teams for existing projects!`);
+      console.log('Create teams response:', response.data);
+      
+      if (response.data.created_teams && response.data.created_teams.length > 0) {
+        const details = response.data.details;
+        showToast.success(
+          `✅ Created ${response.data.created_teams.length} team(s)! (${details.total_projects} total projects in database)`
+        );
         fetchTeams(); // Refresh teams list
+      } else if (response.data.details) {
+        const { total_projects, projects_with_teams } = response.data.details;
+        showToast.info(
+          `All ${total_projects} project(s) in the database already have teams assigned. (${projects_with_teams} teams found)`
+        );
       } else {
-        showToast.info('All projects already have teams assigned.');
+        showToast.info(response.data.message || 'All projects already have teams assigned.');
       }
     } catch (error) {
       console.error('Error creating teams for existing projects:', error);
-      showToast.error('Failed to create teams for existing projects');
+      console.error('Error response:', error.response);
+      console.error('Error request:', error.request);
+      
+      if (error.response) {
+        const errorMsg = error.response.data?.error || error.response.data?.message || 'Failed to create teams for existing projects';
+        showToast.error(`❌ ${errorMsg}`);
+        console.error('Server error details:', error.response.data);
+      } else if (error.request) {
+        showToast.error('❌ Network error: Could not reach the server. Please check your connection.');
+      } else {
+        showToast.error(`❌ Failed to create teams: ${error.message}`);
+      }
     }
   };
 

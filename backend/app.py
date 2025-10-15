@@ -1031,27 +1031,76 @@ def get_project_details(project_id):
 @jwt_required()
 def create_teams_for_existing_projects():
     """Create teams for existing projects that don't have teams yet"""
-    username = get_jwt_identity()
-    
     try:
-        # Get all projects created by the user that don't have teams
-        projects_without_teams = list(projects_collection.find({
-            'created_by': username,
-            'team_id': {'$exists': False}
-        }))
+        username = get_jwt_identity()
+        print(f"User {username} is creating teams for existing projects")
+        # Get ALL projects from the database (not just user's projects)
+        all_projects = list(projects_collection.find({}))
+        
+        print(f"Found {len(all_projects)} total projects in database")
+        
+        # Get all existing teams (from all users)
+        existing_teams_project_ids = set()
+        existing_teams = list(teams_collection.find({}))
+        
+        for team in existing_teams:
+            if 'project_id' in team and team['project_id']:
+                existing_teams_project_ids.add(team['project_id'])
+        
+        print(f"Found {len(existing_teams_project_ids)} projects that already have teams")
+        
+        # Filter projects without teams
+        projects_without_teams = [
+            project for project in all_projects 
+            if project.get('project_id') not in existing_teams_project_ids
+        ]
+        
+        print(f"Found {len(projects_without_teams)} projects without teams")
         
         created_teams = []
         
         for project in projects_without_teams:
-            # Generate team_id based on project
-            team_id = f"TEAM_{project['project_id']}"
-            team_name = f"{project['name']}-Team"
-            team_description = f"Team for {project['name']} project"
-            
-            # Check if team already exists
-            existing_team = teams_collection.find_one({'team_id': team_id})
-            
-            if not existing_team:
+            try:
+                # Generate team_id based on project
+                team_id = f"TEAM_{project['project_id']}"
+                team_name = f"{project['name']} Team"
+                team_description = f"Collaboration team for {project['name']} project"
+                
+                # Use project creator as team owner, fallback to current user
+                team_owner = project.get('created_by', username)
+                
+                print(f"Processing project: {project.get('name')} (ID: {project.get('project_id')}, Owner: {team_owner})")
+                
+                # Double-check if team already exists
+                existing_team = teams_collection.find_one({
+                    '$or': [
+                        {'team_id': team_id},
+                        {'project_id': project['project_id']}
+                    ]
+                })
+                
+                if existing_team:
+                    print(f"Team already exists for project {project['name']}, skipping...")
+                    continue
+                
+                # Build members list - include both owner and current user (if different)
+                members = [
+                    {
+                        'username': team_owner,
+                        'role': 'owner',
+                        'joined_at': datetime.now(timezone.utc)
+                    }
+                ]
+                
+                # Add current user as admin if they're not the owner
+                if username != team_owner:
+                    members.append({
+                        'username': username,
+                        'role': 'admin',
+                        'joined_at': datetime.now(timezone.utc)
+                    })
+                    print(f"Added current user {username} as admin (owner is {team_owner})")
+                
                 # Create new team
                 team_data = {
                     'team_id': team_id,
@@ -1059,39 +1108,81 @@ def create_teams_for_existing_projects():
                     'description': team_description,
                     'project_id': project['project_id'],
                     'project_name': project['name'],
-                    'owner': username,
-                    'members': [
-                        {
-                            'username': username,
-                            'role': 'owner',
-                            'joined_at': datetime.now(timezone.utc)
-                        }
-                    ],
+                    'owner': team_owner,
+                    'members': members,
                     'created_at': datetime.now(timezone.utc),
                     'updated_at': datetime.now(timezone.utc)
                 }
                 
-                teams_collection.insert_one(team_data)
+                # Insert team
+                result = teams_collection.insert_one(team_data)
+                print(f"Inserted team with _id: {result.inserted_id}")
                 
                 # Update project with team_id
-                projects_collection.update_one(
+                update_result = projects_collection.update_one(
                     {'project_id': project['project_id']},
                     {'$set': {'team_id': team_id}}
                 )
+                print(f"Updated project, matched: {update_result.matched_count}, modified: {update_result.modified_count}")
                 
                 created_teams.append({
                     'project_name': project['name'],
                     'team_name': team_name,
                     'team_id': team_id
                 })
+                
+                print(f"✓ Successfully created team {team_id} for project {project['name']}")
+                
+            except Exception as project_error:
+                print(f"✗ Error creating team for project {project.get('name', 'Unknown')}: {str(project_error)}")
+                # Continue with next project instead of failing completely
+                continue
         
-        return jsonify({
-            'message': f'Created {len(created_teams)} teams for existing projects',
-            'created_teams': created_teams
-        }), 200
+        if len(created_teams) > 0:
+            print(f"Successfully created {len(created_teams)} teams")
+            return jsonify({
+                'success': True,
+                'message': f'Created {len(created_teams)} team(s) for existing projects',
+                'created_teams': created_teams,
+                'details': {
+                    'total_projects': len(all_projects),
+                    'projects_with_teams': len(existing_teams_project_ids),
+                    'projects_without_teams_before': len(projects_without_teams),
+                    'teams_created': len(created_teams)
+                }
+            }), 200
+        else:
+            print(f"No new teams created. {len(all_projects)} total projects, {len(existing_teams_project_ids)} already have teams")
+            return jsonify({
+                'success': True,
+                'message': 'All projects in the database already have teams assigned',
+                'created_teams': [],
+                'details': {
+                    'total_projects': len(all_projects),
+                    'projects_with_teams': len(existing_teams_project_ids)
+                }
+            }), 200
         
     except errors.PyMongoError as e:
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
+        error_msg = f"Database error: {str(e)}"
+        print(f"Database error in create_teams_for_existing_projects: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': error_msg,
+            'type': 'database_error'
+        }), 500
+    except Exception as e:
+        error_msg = f"Server error: {str(e)}"
+        print(f"Unexpected error in create_teams_for_existing_projects: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': error_msg,
+            'type': 'server_error'
+        }), 500
 
 # Forecasts API
 @app.route('/api/forecasts', methods=['GET'])
@@ -1205,20 +1296,14 @@ def get_dashboard_metrics():
             forecast_accuracy = 0.0
             print("No forecasts with actual values found")
         
-        # Get pending orders count from orders collection (team-based)
-        accessible_projects = list(projects_collection.find(accessible_projects_query, {'project_id': 1, '_id': 0}))
-        project_ids = [project['project_id'] for project in accessible_projects]
-        print(f"Accessible project IDs for {username}: {project_ids}")
-        
+        # Get pending orders count from orders collection
+        # Count all orders (not filtered by project since many orders might not have project_id)
         pending_orders = orders_collection.count_documents({
-            'project_id': {'$in': project_ids},
             'status': 'PENDING'
         })
         
-        # Get total orders count from orders collection (team-based)
-        total_orders = orders_collection.count_documents({
-            'project_id': {'$in': project_ids}
-        })
+        # Get total orders count from orders collection
+        total_orders = orders_collection.count_documents({})
         
         print(f"Orders data for {username}: pending={pending_orders}, total={total_orders}")
         
@@ -1581,30 +1666,19 @@ def get_orders():
     try:
         username = get_jwt_identity()
         
-        # Get user's teams
-        user_teams = list(teams_collection.find({
-            'members.username': username
-        }, {'team_id': 1, '_id': 0}))
+        # Get ALL orders from the database (not filtered by project)
+        # Many orders might not have project_id set
+        orders = list(orders_collection.find({}, {'_id': 0}).sort('created_at', -1))
         
-        team_ids = [team['team_id'] for team in user_teams]
+        print(f"GET /api/orders - Found {len(orders)} total orders for user {username}")
         
-        # Get projects accessible to user
-        accessible_projects = list(projects_collection.find({
-            '$or': [
-                {'created_by': username},
-                {'team_id': {'$in': team_ids}}
-            ]
-        }, {'project_id': 1, '_id': 0}))
-        
-        project_ids = [project['project_id'] for project in accessible_projects]
-        
-        # Get orders for accessible projects
-        orders = list(orders_collection.find({
-            'project_id': {'$in': project_ids}
-        }, {'_id': 0}).sort('created_at', -1))
+        # Log first order for debugging
+        if orders:
+            print(f"Sample order structure: {orders[0]}")
         
         return jsonify(orders)
     except errors.PyMongoError as e:
+        print(f"Error in get_orders: {str(e)}")
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @app.route('/api/orders', methods=['POST'])
@@ -1669,6 +1743,104 @@ def create_order():
         return jsonify(order_data), 201
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+# Purchase Orders API (alias for orders - for compatibility)
+@app.route('/api/purchase-orders', methods=['GET'])
+@jwt_required()
+def get_purchase_orders():
+    """Get all purchase orders"""
+    try:
+        username = get_jwt_identity()
+        
+        # Get all orders from the database
+        orders = list(orders_collection.find({}, {'_id': 0}).sort('created_at', -1))
+        
+        print(f"Found {len(orders)} orders in database for user {username}")
+        
+        # Convert to expected format for frontend
+        purchase_orders = []
+        for order in orders:
+            # Try to extract dealer name or ID
+            dealer_info = order.get('dealer', '')
+            dealer_id = dealer_info if isinstance(dealer_info, (int, str)) else 1
+            
+            purchase_orders.append({
+                'id': order.get('order_id', ''),
+                'request_id': order.get('order_id', ''),  # Using order_id as request_id
+                'dealer_id': dealer_id,
+                'status': order.get('status', 'Pending'),
+                'material': order.get('material', ''),
+                'quantity': order.get('quantity', 0),
+                'total_price': order.get('total_price', 0),
+                'created_at': order.get('created_at', ''),
+                'project': order.get('project', ''),
+                'expected_delivery': order.get('expected_delivery', '')
+            })
+        
+        print(f"Returning {len(purchase_orders)} purchase orders")
+        return jsonify(purchase_orders), 200
+    except Exception as e:
+        print(f"Error in get_purchase_orders: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/purchase-orders', methods=['POST'])
+@jwt_required()
+def create_purchase_order():
+    """Create purchase order - alias for /api/orders"""
+    return create_order()
+
+# Purchase Requests API
+@app.route('/api/purchase-requests', methods=['GET'])
+@jwt_required()
+def get_purchase_requests():
+    """Get all purchase requests"""
+    try:
+        username = get_jwt_identity()
+        
+        # For now, return empty array or sample data
+        # This should be implemented based on your purchase request workflow
+        requests = []
+        
+        return jsonify(requests), 200
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+# Dealers API
+@app.route('/api/dealers', methods=['GET'])
+@jwt_required()
+def get_dealers():
+    """Get all dealers"""
+    try:
+        # Sample dealers data - in production, this would come from a dealers collection
+        dealers = [
+            {
+                'id': 1,
+                'name': 'Power Tech Solutions',
+                'contact': '+91-98765-43210',
+                'email': 'sales@powertech.com',
+                'address': 'Mumbai, Maharashtra'
+            },
+            {
+                'id': 2,
+                'name': 'Grid Equipment Ltd',
+                'contact': '+91-98765-43211',
+                'email': 'orders@gridequip.com',
+                'address': 'Delhi, NCR'
+            },
+            {
+                'id': 3,
+                'name': 'Electrical Components Co',
+                'contact': '+91-98765-43212',
+                'email': 'info@eleccomp.com',
+                'address': 'Bangalore, Karnataka'
+            }
+        ]
+        
+        return jsonify(dealers), 200
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/api/projects/<project_id>/actual-values', methods=['POST'])
 @jwt_required()
@@ -2253,9 +2425,21 @@ def get_user_teams():
     username = get_jwt_identity()
     
     try:
+        # Get teams where user is a member OR teams for projects they created
+        user_projects = list(projects_collection.find(
+            {'created_by': username},
+            {'project_id': 1, '_id': 0}
+        ))
+        user_project_ids = [p['project_id'] for p in user_projects]
+        
         teams = list(teams_collection.find({
-            'members.username': username
+            '$or': [
+                {'members.username': username},  # Teams where user is a member
+                {'project_id': {'$in': user_project_ids}}  # Teams for user's projects
+            ]
         }, {'_id': 0}))
+        
+        print(f"Found {len(teams)} teams for user {username}")
         
         return jsonify(teams)
     except errors.PyMongoError as e:
