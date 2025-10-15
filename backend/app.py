@@ -2616,6 +2616,43 @@ def remove_team_member(team_id, member_username):
     except errors.PyMongoError as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
+@app.route('/api/teams/<team_id>', methods=['DELETE'])
+@jwt_required()
+def delete_team(team_id):
+    """Delete a team (only owner can delete)"""
+    username = get_jwt_identity()
+    
+    try:
+        # Check if user is the team owner
+        team = teams_collection.find_one({
+            'team_id': team_id,
+            'members.username': username,
+            'members.role': 'owner'
+        })
+        
+        if not team:
+            return jsonify({'error': 'Permission denied. Only team owner can delete the team.'}), 403
+        
+        # Notify all team members before deletion
+        for member in team.get('members', []):
+            if member['username'] != username:
+                create_notification(
+                    member['username'], 
+                    'team_deleted', 
+                    f'Team "{team["name"]}" has been deleted by the owner'
+                )
+        
+        # Delete the team
+        result = teams_collection.delete_one({'team_id': team_id})
+        
+        if result.deleted_count == 0:
+            return jsonify({'error': 'Team not found'}), 404
+        
+        return jsonify({'message': 'Team deleted successfully'}), 200
+        
+    except errors.PyMongoError as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
 @app.route('/api/teams/<team_id>/projects', methods=['GET'])
 @jwt_required()
 def get_team_projects(team_id):

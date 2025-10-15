@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import { Building, Users, MapPin, Calendar, DollarSign, Eye } from 'lucide-react';
+import { Building, Users, MapPin, Calendar, DollarSign, Eye, Trash2 } from 'lucide-react';
+import { showToast } from '../utils/toast';
 
 const Teams = () => {
   const { user } = useAuth();
@@ -44,7 +45,7 @@ const Teams = () => {
       setShowProjectDetailsModal(true);
     } catch (error) {
       console.error('Error fetching project details:', error);
-      alert('Failed to load project details');
+      showToast.error('Failed to load project details');
     }
   };
 
@@ -57,14 +58,14 @@ const Teams = () => {
       });
       
       if (response.data.created_teams.length > 0) {
-        alert(`Created ${response.data.created_teams.length} teams for existing projects!`);
+        showToast.success(`Created ${response.data.created_teams.length} teams for existing projects!`);
         fetchTeams(); // Refresh teams list
       } else {
-        alert('All projects already have teams assigned.');
+        showToast.info('All projects already have teams assigned.');
       }
     } catch (error) {
       console.error('Error creating teams for existing projects:', error);
-      alert('Failed to create teams for existing projects');
+      showToast.error('Failed to create teams for existing projects');
     }
   };
 
@@ -86,12 +87,12 @@ const Teams = () => {
     console.log('Sending team invitation...', inviteForm, selectedTeam);
     
     if (!inviteForm.email) {
-      alert('Email is required');
+      showToast.error('Email is required');
       return;
     }
 
     if (!selectedTeam || !selectedTeam.team_id) {
-      alert('No team selected');
+      showToast.error('No team selected');
       return;
     }
 
@@ -113,20 +114,20 @@ const Teams = () => {
       console.log('Invitation response:', response);
       
       if (response.status === 201) {
-        alert('Team invitation sent successfully!');
+        showToast.success('Team invitation sent successfully!');
         closeTeamInviteModal();
         fetchTeams(); // Refresh teams list
       } else {
-        alert('Unexpected response status: ' + response.status);
+        showToast.warning('Unexpected response status: ' + response.status);
       }
     } catch (error) {
       console.error('Error sending team invitation:', error);
       if (error.response) {
-        alert(`Error: ${error.response.data?.error || error.response.statusText}`);
+        showToast.error(error.response.data?.error || error.response.statusText);
       } else if (error.request) {
-        alert('Network error: Could not reach the server');
+        showToast.error('Network error: Could not reach the server');
       } else {
-        alert('Error: ' + error.message);
+        showToast.error('Error: ' + error.message);
       }
     } finally {
       setInviteLoading(false);
@@ -139,20 +140,22 @@ const Teams = () => {
       await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/teams`, createForm);
       setCreateForm({ name: '', description: '' });
       setShowCreateModal(false);
+      showToast.success('Team created successfully!');
       fetchTeams();
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to create team');
+      showToast.error(error.response?.data?.error || 'Failed to create team');
     }
   };
 
   const removeMember = async (memberUsername) => {
-    if (!confirm(`Are you sure you want to remove ${memberUsername} from the team?`)) return;
+    if (!window.confirm(`Are you sure you want to remove ${memberUsername} from the team?`)) return;
     
     try {
       await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/api/teams/${selectedTeam.team_id}/members/${memberUsername}`);
+      showToast.success('Member removed successfully');
       fetchTeamDetails(selectedTeam);
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to remove member');
+      showToast.error(error.response?.data?.error || 'Failed to remove member');
     }
   };
 
@@ -168,6 +171,30 @@ const Teams = () => {
   const canManageTeam = (team) => {
     const userMember = team.members.find(m => m.username === user.username);
     return userMember && ['owner', 'admin'].includes(userMember.role);
+  };
+
+  const isTeamOwner = (team) => {
+    const userMember = team.members.find(m => m.username === user.username);
+    return userMember && userMember.role === 'owner';
+  };
+
+  const deleteTeam = async (team) => {
+    if (!window.confirm(`Are you sure you want to delete the team "${team.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/api/teams/${team.team_id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      showToast.success('Team deleted successfully');
+      fetchTeams(); // Refresh teams list
+    } catch (error) {
+      console.error('Error deleting team:', error);
+      showToast.error(error.response?.data?.error || 'Failed to delete team');
+    }
   };
 
   if (loading) {
@@ -213,7 +240,18 @@ const Teams = () => {
         {teams.map((team) => (
           <div key={team.team_id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{team.name}</h3>
+              <div className="flex items-center gap-2 flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{team.name}</h3>
+                {isTeamOwner(team) && (
+                  <button
+                    onClick={() => deleteTeam(team)}
+                    className="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                    title="Delete team"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">{team.members.length} members</span>
             </div>
             
@@ -255,27 +293,25 @@ const Teams = () => {
               {canManageTeam(team) && (
                 <button
                   onClick={() => openTeamInviteModal(team)}
-                  className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors text-sm"
+                  className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors text-sm"
                 >
                   Invite
                 </button>
               )}
-            </div>
-            
-            {/* View Project Button for teams with associated projects */}
-            {team.project_name && (
-              <div className="mt-2">
+              
+              {/* View Project Button for teams with associated projects */}
+              {team.project_name && (
                 <button
                   onClick={() => {
                     viewProjectDetails(team.project_id);
                   }}
-                  className="w-full bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors text-sm flex items-center justify-center gap-1"
+                  className="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors text-sm flex items-center justify-center gap-1"
                 >
                   <Eye className="h-4 w-4" />
                   View Project
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         ))}
       </div>

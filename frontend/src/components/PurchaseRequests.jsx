@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FileText, ShoppingCart, Plus, Download, FileSpreadsheet, FileText as FileTextIcon, RefreshCw, Filter, X, Calendar, Eye, CheckCircle, Clock, AlertCircle, Star } from 'lucide-react';
+import { showToast } from '../utils/toast';
 
 const PurchaseRequests = () => {
   const [items, setItems] = useState([]);
@@ -177,7 +178,7 @@ const PurchaseRequests = () => {
           phone: '',
           address: ''
         });
-        alert('Dealer added successfully!');
+        showToast.success('Dealer added successfully!');
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to add dealer');
@@ -228,7 +229,7 @@ const PurchaseRequests = () => {
     
     try {
       if (filteredItems.length === 0) {
-        alert('No orders to export. Please adjust your filters or create some orders first.');
+        showToast.warning('No orders to export. Please adjust your filters or create some orders first.');
         return;
       }
 
@@ -325,11 +326,11 @@ const PurchaseRequests = () => {
       URL.revokeObjectURL(url);
 
       // Show success message
-      alert(`Successfully exported ${filteredItems.length} order(s) to ${filename}`);
+      showToast.success(`Successfully exported ${filteredItems.length} order(s) to ${filename}`);
       
     } catch (error) {
       console.error('Error exporting CSV:', error);
-      alert('Failed to export CSV. Please try again or contact support if the issue persists.');
+      showToast.error('Failed to export CSV. Please try again or contact support if the issue persists.');
     } finally {
       setExportingCSV(false);
     }
@@ -389,7 +390,7 @@ const PurchaseRequests = () => {
   const handleDeleteOrder = async () => {
     if (!selectedOrder) return;
     
-    if (!confirm(`Are you sure you want to delete order ${selectedOrder.order_id}? This action cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to delete order ${selectedOrder.order_id}? This action cannot be undone.`)) {
       return;
     }
     
@@ -1300,7 +1301,7 @@ Expected Delivery: ${formatDate(selectedOrder.expected_delivery)}
 Status: ${selectedOrder.status}`;
                       
                       navigator.clipboard.writeText(orderText).then(() => {
-                        alert('Order details copied to clipboard!');
+                        showToast.success('Order details copied to clipboard!');
                       });
                     }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"

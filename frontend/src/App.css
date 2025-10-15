@@ -45,3 +45,21 @@
 main {
   margin-left: 16rem; /* sidebar width 64 */
 }
+
+/* Toast notifications - Light mode */
+:root {
+  --toast-bg: #ffffff;
+  --toast-text: #1f2937;
+}
+
+/* Toast notifications - Dark mode */
+.dark {
+  --toast-bg: #1f2937;
+  --toast-text: #f9fafb;
+}
+
+/* Toast container adjustments for better visibility */
+.dark [data-sonner-toaster] {
+  --toast-bg: #1f2937 !important;
+  --toast-text: #f9fafb !important;
+}

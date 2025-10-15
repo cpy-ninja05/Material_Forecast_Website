@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import DataTable from './ui/DataTable';
 import { useAuth } from '../contexts/AuthContext';
+import { showToast } from '../utils/toast';
 
 const LoadDispatch = () => {
   const { user } = useAuth();
@@ -31,8 +32,9 @@ const LoadDispatch = () => {
       await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/dispatch`, form);
       setForm({ timestamp: '', region: 'North', demand_mw: '', supply_mw: '', frequency_hz: 50.0, voltage_kv: 220, remarks: '' });
       fetchAll();
+      showToast.success('Log added successfully!');
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to add log');
+      showToast.error(e.response?.data?.error || 'Failed to add log');
     }
   };
 

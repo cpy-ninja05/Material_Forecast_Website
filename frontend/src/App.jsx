@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import AuthPage from './components/AuthPage';
@@ -87,6 +88,42 @@ function App() {
             } />
           </Routes>
         </Router>
+        {/* Toast notifications with dark mode support */}
+        <Toaster
+          position="top-right"
+          reverseOrder={false}
+          gutter={8}
+          toastOptions={{
+            // Default options for all toasts
+            className: '',
+            duration: 3000,
+            style: {
+              background: 'var(--toast-bg)',
+              color: 'var(--toast-text)',
+              padding: '16px',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '500',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            },
+            // Success toast styling
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#10B981',
+                secondary: '#ffffff',
+              },
+            },
+            // Error toast styling
+            error: {
+              duration: 4000,
+              iconTheme: {
+                primary: '#EF4444',
+                secondary: '#ffffff',
+              },
+            },
+          }}
+        />
       </AuthProvider>
     </ThemeProvider>
   );
