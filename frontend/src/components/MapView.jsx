@@ -34,7 +34,6 @@ const MapView = () => {
   const [filters, setFilters] = useState({
     status: 'All Status',
     towerType: 'All Tower Types',
-    substationType: 'All Substation Types',
     state: 'All States',
     riskLevel: 'All Risk Levels'
   });
@@ -295,7 +294,6 @@ const MapView = () => {
   const filteredProjects = projects.filter(project => {
     if (filters.status !== 'All Status' && project.status !== filters.status) return false;
     if (filters.towerType !== 'All Tower Types' && project.tower_type !== filters.towerType) return false;
-    if (filters.substationType !== 'All Substation Types' && project.substation_type !== filters.substationType) return false;
     if (filters.state !== 'All States' && project.state !== filters.state) return false;
     
     // Risk level filtering
@@ -370,23 +368,6 @@ const MapView = () => {
               <option>Tension</option>
               <option>Terminal</option>
               <option>Transposition</option>
-            </select>
-            
-            <select 
-              value={filters.substationType}
-              onChange={(e) => setFilters({...filters, substationType: e.target.value})}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option>All Substation Types</option>
-              <option>132 kV AIS</option>
-              <option>132 kV GIS</option>
-              <option>220 kV AIS</option>
-              <option>220 kV GIS</option>
-              <option>400 kV AIS</option>
-              <option>400 kV GIS</option>
-              <option>765 kV AIS</option>
-              <option>765 kV GIS</option>
-              <option>HVDC</option>
             </select>
             
             <select 
