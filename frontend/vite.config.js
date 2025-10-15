@@ -14,5 +14,9 @@ export default defineConfig({
         manualChunks: undefined
       }
     }
+  },
+  // Ensure SPA routing works in production
+  preview: {
+    historyApiFallback: true
   }
 })
