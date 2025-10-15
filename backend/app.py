@@ -3144,7 +3144,30 @@ def invite_team_to_project(project_id):
         </html>
         """
         
-        mail.send(msg)
+        msg.body = f"""
+        You've been invited to collaborate on a project!
+        
+        Project: {project['name']}
+        Location: {project.get('location', 'Not specified')}
+        Status: {project.get('status', 'Not specified')}
+        Invited by: {username}
+        
+        Click the link below to accept the invitation:
+        {invitation_url}
+        
+        This invitation will expire in 7 days.
+        
+        Best regards,
+        PlanGrid Team
+        """
+        
+        # Send email asynchronously in background thread to prevent blocking
+        from threading import Thread
+        email_thread = Thread(target=send_async_email, args=(app, msg))
+        email_thread.daemon = True
+        email_thread.start()
+        
+        print(f"Project invitation email queued for {email}")
         
         return jsonify({
             'message': 'Project invitation sent successfully',
@@ -3153,6 +3176,8 @@ def invite_team_to_project(project_id):
         
     except Exception as e:
         print(f"Error sending project invitation: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Failed to send invitation'}), 500
 
 def create_notification(user_id, notification_type, message, data=None):
