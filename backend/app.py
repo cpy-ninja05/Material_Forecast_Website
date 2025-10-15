@@ -2907,6 +2907,562 @@ def get_team_based_query(username):
     team_members = get_team_members_for_user(username)
     return {'created_by': {'$in': team_members}}
 
+# ==================== RIGHT OF WAY (RoW) RISK PREDICTION ====================
+
+def calculate_row_risk_score(location_data):
+    """
+    Calculate RoW risk score based on location factors
+    Returns a score from 0-100 where higher scores indicate higher risk
+    """
+    try:
+        risk_factors = {
+            'population_density': 0,
+            'forest_area': 0,
+            'agricultural_land': 0,
+            'urban_area': 0,
+            'protected_area': 0,
+            'tribal_area': 0,
+            'historical_conflicts': 0,
+            'state_policy': 0
+        }
+        
+        state = location_data.get('state', '').lower()
+        city = location_data.get('city', '').lower()
+        
+        # Population density risk (higher population = higher risk)
+        population_risk_map = {
+            'maharashtra': {'mumbai': 85, 'pune': 70, 'nagpur': 60, 'thane': 75, 'nashik': 55},
+            'delhi': {'delhi': 90, 'new delhi': 90, 'gurgaon': 80, 'noida': 75, 'faridabad': 70},
+            'karnataka': {'bangalore': 80, 'mysore': 60, 'hubli': 55, 'mangalore': 65},
+            'tamil nadu': {'chennai': 85, 'coimbatore': 70, 'madurai': 65, 'trichy': 60},
+            'west bengal': {'kolkata': 85, 'howrah': 80, 'durgapur': 60, 'asansol': 65},
+            'gujarat': {'ahmedabad': 75, 'surat': 80, 'vadodara': 65, 'rajkot': 60},
+            'rajasthan': {'jaipur': 70, 'jodhpur': 55, 'udaipur': 50, 'kota': 60},
+            'uttar pradesh': {'lucknow': 70, 'kanpur': 75, 'agra': 65, 'varanasi': 70},
+            'bihar': {'patna': 70, 'gaya': 60, 'bhagalpur': 55, 'muzaffarpur': 60},
+            'punjab': {'chandigarh': 70, 'ludhiana': 75, 'amritsar': 70, 'jalandhar': 65},
+            'haryana': {'faridabad': 75, 'gurgaon': 80, 'panipat': 60, 'ambala': 55}
+        }
+        
+        if state in population_risk_map and city in population_risk_map[state]:
+            risk_factors['population_density'] = population_risk_map[state][city]
+        else:
+            # Default based on state
+            state_defaults = {
+                'maharashtra': 65, 'delhi': 85, 'karnataka': 60, 'tamil nadu': 65,
+                'west bengal': 70, 'gujarat': 60, 'rajasthan': 55, 'uttar pradesh': 65,
+                'bihar': 60, 'punjab': 65, 'haryana': 70
+            }
+            risk_factors['population_density'] = state_defaults.get(state, 50)
+        
+        # Forest area risk (higher forest coverage = higher risk)
+        forest_risk_map = {
+            'maharashtra': {'nashik': 70, 'aurangabad': 60, 'kolhapur': 75, 'amravati': 80},
+            'karnataka': {'bangalore': 40, 'mysore': 60, 'hubli': 50, 'mangalore': 80},
+            'tamil nadu': {'chennai': 30, 'coimbatore': 60, 'madurai': 50, 'salem': 70},
+            'west bengal': {'kolkata': 20, 'siliguri': 85, 'darjeeling': 90},
+            'gujarat': {'ahmedabad': 30, 'surat': 40, 'vadodara': 35},
+            'rajasthan': {'jaipur': 40, 'udaipur': 60, 'kota': 50},
+            'uttar pradesh': {'lucknow': 40, 'kanpur': 35, 'varanasi': 30},
+            'bihar': {'patna': 30, 'gaya': 40, 'bhagalpur': 35},
+            'punjab': {'chandigarh': 30, 'amritsar': 25},
+            'haryana': {'faridabad': 25, 'gurgaon': 20}
+        }
+        
+        if state in forest_risk_map and city in forest_risk_map[state]:
+            risk_factors['forest_area'] = forest_risk_map[state][city]
+        else:
+            state_forest_defaults = {
+                'maharashtra': 50, 'karnataka': 60, 'tamil nadu': 45, 'west bengal': 40,
+                'gujarat': 30, 'rajasthan': 45, 'uttar pradesh': 35, 'bihar': 30,
+                'punjab': 25, 'haryana': 20
+            }
+            risk_factors['forest_area'] = state_forest_defaults.get(state, 30)
+        
+        # Agricultural land risk (higher agricultural area = higher risk)
+        agricultural_risk_map = {
+            'maharashtra': {'pune': 70, 'nashik': 75, 'aurangabad': 80, 'solapur': 85},
+            'karnataka': {'bangalore': 60, 'mysore': 75, 'hubli': 80, 'belgaum': 85},
+            'tamil nadu': {'coimbatore': 75, 'madurai': 80, 'trichy': 85, 'salem': 80},
+            'west bengal': {'kolkata': 40, 'bardhaman': 85, 'malda': 80},
+            'gujarat': {'ahmedabad': 60, 'surat': 55, 'vadodara': 70, 'rajkot': 75},
+            'rajasthan': {'jaipur': 60, 'jodhpur': 70, 'udaipur': 65, 'kota': 70},
+            'uttar pradesh': {'lucknow': 70, 'kanpur': 75, 'agra': 80, 'varanasi': 75},
+            'bihar': {'patna': 80, 'gaya': 85, 'bhagalpur': 80, 'muzaffarpur': 85},
+            'punjab': {'chandigarh': 80, 'ludhiana': 85, 'amritsar': 80, 'jalandhar': 85},
+            'haryana': {'faridabad': 70, 'panipat': 85, 'ambala': 80}
+        }
+        
+        if state in agricultural_risk_map and city in agricultural_risk_map[state]:
+            risk_factors['agricultural_land'] = agricultural_risk_map[state][city]
+        else:
+            state_agri_defaults = {
+                'maharashtra': 70, 'karnataka': 70, 'tamil nadu': 75, 'west bengal': 60,
+                'gujarat': 65, 'rajasthan': 65, 'uttar pradesh': 75, 'bihar': 80,
+                'punjab': 80, 'haryana': 75
+            }
+            risk_factors['agricultural_land'] = state_agri_defaults.get(state, 60)
+        
+        # Urban area risk (higher urbanization = higher risk)
+        urban_risk_map = {
+            'maharashtra': {'mumbai': 90, 'pune': 80, 'nagpur': 70, 'thane': 85},
+            'delhi': {'delhi': 95, 'new delhi': 95, 'gurgaon': 85, 'noida': 80},
+            'karnataka': {'bangalore': 85, 'mysore': 70, 'hubli': 65, 'mangalore': 70},
+            'tamil nadu': {'chennai': 90, 'coimbatore': 75, 'madurai': 70, 'trichy': 65},
+            'west bengal': {'kolkata': 90, 'howrah': 85, 'durgapur': 70, 'asansol': 75},
+            'gujarat': {'ahmedabad': 80, 'surat': 85, 'vadodara': 70, 'rajkot': 65},
+            'rajasthan': {'jaipur': 75, 'jodhpur': 60, 'udaipur': 55, 'kota': 65},
+            'uttar pradesh': {'lucknow': 75, 'kanpur': 80, 'agra': 70, 'varanasi': 70},
+            'bihar': {'patna': 70, 'gaya': 60, 'bhagalpur': 55, 'muzaffarpur': 60},
+            'punjab': {'chandigarh': 75, 'ludhiana': 80, 'amritsar': 70, 'jalandhar': 70},
+            'haryana': {'faridabad': 80, 'gurgaon': 85, 'panipat': 70, 'ambala': 60}
+        }
+        
+        if state in urban_risk_map and city in urban_risk_map[state]:
+            risk_factors['urban_area'] = urban_risk_map[state][city]
+        else:
+            state_urban_defaults = {
+                'maharashtra': 75, 'delhi': 90, 'karnataka': 70, 'tamil nadu': 75,
+                'west bengal': 75, 'gujarat': 70, 'rajasthan': 65, 'uttar pradesh': 70,
+                'bihar': 65, 'punjab': 70, 'haryana': 75
+            }
+            risk_factors['urban_area'] = state_urban_defaults.get(state, 60)
+        
+        # Protected area risk (national parks, wildlife sanctuaries)
+        protected_area_risk_map = {
+            'maharashtra': {'nashik': 80, 'aurangabad': 70, 'kolhapur': 85, 'amravati': 90},
+            'karnataka': {'mysore': 85, 'hubli': 60, 'mangalore': 90, 'belgaum': 75},
+            'tamil nadu': {'coimbatore': 80, 'madurai': 70, 'salem': 75},
+            'west bengal': {'siliguri': 95, 'darjeeling': 90},
+            'rajasthan': {'udaipur': 80, 'kota': 70},
+            'uttar pradesh': {'lucknow': 50, 'varanasi': 45},
+            'bihar': {'patna': 40, 'gaya': 60},
+            'punjab': {'amritsar': 30},
+            'haryana': {'faridabad': 25}
+        }
+        
+        if state in protected_area_risk_map and city in protected_area_risk_map[state]:
+            risk_factors['protected_area'] = protected_area_risk_map[state][city]
+        else:
+            state_protected_defaults = {
+                'maharashtra': 60, 'karnataka': 70, 'tamil nadu': 60, 'west bengal': 50,
+                'gujarat': 40, 'rajasthan': 60, 'uttar pradesh': 45, 'bihar': 40,
+                'punjab': 30, 'haryana': 25
+            }
+            risk_factors['protected_area'] = state_protected_defaults.get(state, 40)
+        
+        # Tribal area risk (higher tribal population = higher risk)
+        tribal_risk_map = {
+            'maharashtra': {'nashik': 70, 'aurangabad': 75, 'kolhapur': 80, 'amravati': 85},
+            'karnataka': {'mysore': 60, 'hubli': 65, 'belgaum': 70},
+            'tamil nadu': {'coimbatore': 50, 'madurai': 55, 'salem': 60},
+            'west bengal': {'siliguri': 80, 'darjeeling': 85},
+            'rajasthan': {'udaipur': 70, 'kota': 60},
+            'uttar pradesh': {'lucknow': 40, 'varanasi': 35},
+            'bihar': {'patna': 35, 'gaya': 45},
+            'punjab': {'amritsar': 25},
+            'haryana': {'faridabad': 20}
+        }
+        
+        if state in tribal_risk_map and city in tribal_risk_map[state]:
+            risk_factors['tribal_area'] = tribal_risk_map[state][city]
+        else:
+            state_tribal_defaults = {
+                'maharashtra': 65, 'karnataka': 60, 'tamil nadu': 50, 'west bengal': 45,
+                'gujarat': 40, 'rajasthan': 60, 'uttar pradesh': 35, 'bihar': 35,
+                'punjab': 25, 'haryana': 20
+            }
+            risk_factors['tribal_area'] = state_tribal_defaults.get(state, 40)
+        
+        # Historical conflicts risk
+        conflict_risk_map = {
+            'maharashtra': {'mumbai': 60, 'pune': 50, 'nagpur': 45, 'nashik': 55},
+            'delhi': {'delhi': 70, 'new delhi': 70, 'gurgaon': 60, 'noida': 55},
+            'karnataka': {'bangalore': 55, 'mysore': 45, 'hubli': 40},
+            'tamil nadu': {'chennai': 50, 'coimbatore': 45, 'madurai': 40},
+            'west bengal': {'kolkata': 60, 'howrah': 55, 'siliguri': 70},
+            'gujarat': {'ahmedabad': 55, 'surat': 50, 'vadodara': 45},
+            'rajasthan': {'jaipur': 45, 'jodhpur': 40, 'udaipur': 35},
+            'uttar pradesh': {'lucknow': 60, 'kanpur': 55, 'agra': 50, 'varanasi': 55},
+            'bihar': {'patna': 65, 'gaya': 60, 'bhagalpur': 55},
+            'punjab': {'chandigarh': 50, 'ludhiana': 45, 'amritsar': 60},
+            'haryana': {'faridabad': 50, 'gurgaon': 45, 'panipat': 40}
+        }
+        
+        if state in conflict_risk_map and city in conflict_risk_map[state]:
+            risk_factors['historical_conflicts'] = conflict_risk_map[state][city]
+        else:
+            state_conflict_defaults = {
+                'maharashtra': 50, 'delhi': 65, 'karnataka': 45, 'tamil nadu': 45,
+                'west bengal': 55, 'gujarat': 45, 'rajasthan': 40, 'uttar pradesh': 55,
+                'bihar': 60, 'punjab': 50, 'haryana': 45
+            }
+            risk_factors['historical_conflicts'] = state_conflict_defaults.get(state, 45)
+        
+        # State policy risk (based on state's land acquisition policies)
+        state_policy_risk = {
+            'maharashtra': 60, 'delhi': 70, 'karnataka': 55, 'tamil nadu': 50,
+            'west bengal': 65, 'gujarat': 50, 'rajasthan': 45, 'uttar pradesh': 60,
+            'bihar': 65, 'punjab': 55, 'haryana': 60
+        }
+        risk_factors['state_policy'] = state_policy_risk.get(state, 50)
+        
+        # Calculate weighted average risk score
+        weights = {
+            'population_density': 0.20,
+            'forest_area': 0.15,
+            'agricultural_land': 0.20,
+            'urban_area': 0.15,
+            'protected_area': 0.10,
+            'tribal_area': 0.10,
+            'historical_conflicts': 0.05,
+            'state_policy': 0.05
+        }
+        
+        total_score = sum(risk_factors[factor] * weights[factor] for factor in risk_factors)
+        
+        # Determine risk level
+        if total_score >= 75:
+            risk_level = 'High'
+        elif total_score >= 50:
+            risk_level = 'Medium'
+        else:
+            risk_level = 'Low'
+        
+        return {
+            'risk_score': round(total_score, 1),
+            'risk_level': risk_level,
+            'risk_factors': risk_factors,
+            'weights': weights,
+            'location': f"{city.title()}, {state.title()}" if city and state else location_data.get('location', 'Unknown')
+        }
+        
+    except Exception as e:
+        print(f"Error calculating RoW risk score: {e}")
+        return {
+            'risk_score': 50.0,
+            'risk_level': 'Medium',
+            'risk_factors': {},
+            'weights': {},
+            'location': location_data.get('location', 'Unknown'),
+            'error': str(e)
+        }
+
+@app.route('/api/row-risk/predict', methods=['POST'])
+@jwt_required()
+def predict_row_risk():
+    """Predict RoW risk for a given location"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'location' not in data:
+            return jsonify({'error': 'Location data is required'}), 400
+        
+        location_data = data['location']
+        
+        # Calculate risk score
+        risk_result = calculate_row_risk_score(location_data)
+        
+        # Add additional metadata
+        risk_result['prediction_timestamp'] = datetime.now(timezone.utc).isoformat()
+        risk_result['prediction_id'] = str(ObjectId())
+        
+        return jsonify({
+            'success': True,
+            'prediction': risk_result
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in RoW risk prediction: {e}")
+        return jsonify({'error': 'Failed to predict RoW risk'}), 500
+
+@app.route('/api/row-risk/batch-predict', methods=['POST'])
+@jwt_required()
+def batch_predict_row_risk():
+    """Predict RoW risk for multiple locations"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'locations' not in data:
+            return jsonify({'error': 'Locations array is required'}), 400
+        
+        locations = data['locations']
+        
+        if not isinstance(locations, list):
+            return jsonify({'error': 'Locations must be an array'}), 400
+        
+        predictions = []
+        
+        for i, location_data in enumerate(locations):
+            try:
+                risk_result = calculate_row_risk_score(location_data)
+                risk_result['location_index'] = i
+                predictions.append(risk_result)
+            except Exception as e:
+                predictions.append({
+                    'location_index': i,
+                    'error': str(e),
+                    'risk_score': 50.0,
+                    'risk_level': 'Medium'
+                })
+        
+        return jsonify({
+            'success': True,
+            'predictions': predictions,
+            'total_locations': len(locations),
+            'successful_predictions': len([p for p in predictions if 'error' not in p])
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in batch RoW risk prediction: {e}")
+        return jsonify({'error': 'Failed to predict RoW risk for locations'}), 500
+
+@app.route('/api/row-risk/projects', methods=['GET'])
+@jwt_required()
+def get_projects_with_row_risk():
+    """Get all projects with their RoW risk assessments"""
+    try:
+        username = get_jwt_identity()
+        team_query = get_team_based_query(username)
+        
+        projects = list(projects_collection.find(team_query, {'_id': 0}))
+        
+        # Add RoW risk assessment to each project
+        projects_with_risk = []
+        
+        for project in projects:
+            try:
+                location_data = {
+                    'state': project.get('state', ''),
+                    'city': project.get('city', ''),
+                    'location': project.get('location', '')
+                }
+                
+                risk_assessment = calculate_row_risk_score(location_data)
+                
+                project_with_risk = {
+                    **project,
+                    'row_risk': risk_assessment
+                }
+                
+                projects_with_risk.append(project_with_risk)
+                
+            except Exception as e:
+                print(f"Error calculating risk for project {project.get('name', 'Unknown')}: {e}")
+                project_with_risk = {
+                    **project,
+                    'row_risk': {
+                        'risk_score': 50.0,
+                        'risk_level': 'Medium',
+                        'error': str(e)
+                    }
+                }
+                projects_with_risk.append(project_with_risk)
+        
+        return jsonify({
+            'success': True,
+            'projects': projects_with_risk,
+            'total_projects': len(projects_with_risk)
+        }), 200
+        
+    except Exception as e:
+        print(f"Error getting projects with RoW risk: {e}")
+        return jsonify({'error': 'Failed to get projects with RoW risk'}), 500
+
+@app.route('/api/row-risk/risk-zones', methods=['GET'])
+@jwt_required()
+def get_risk_zones():
+    """Get risk zones for map visualization"""
+    try:
+        username = get_jwt_identity()
+        team_query = get_team_based_query(username)
+        
+        projects = list(projects_collection.find(team_query, {'_id': 0}))
+        
+        risk_zones = {
+            'high_risk': [],
+            'medium_risk': [],
+            'low_risk': []
+        }
+        
+        for project in projects:
+            try:
+                location_data = {
+                    'state': project.get('state', ''),
+                    'city': project.get('city', ''),
+                    'location': project.get('location', '')
+                }
+                
+                risk_assessment = calculate_row_risk_score(location_data)
+                
+                # Get coordinates for the project
+                coordinates = get_coordinates_for_location(
+                    project.get('state', ''),
+                    project.get('city', ''),
+                    project.get('location', '')
+                )
+                
+                zone_data = {
+                    'project_id': project.get('_id') or project.get('project_id'),
+                    'project_name': project.get('name', 'Unknown'),
+                    'location': f"{project.get('city', '')}, {project.get('state', '')}" if project.get('city') and project.get('state') else project.get('location', 'Unknown'),
+                    'coordinates': coordinates,
+                    'risk_score': risk_assessment['risk_score'],
+                    'risk_level': risk_assessment['risk_level'],
+                    'risk_factors': risk_assessment.get('risk_factors', {}),
+                    'status': project.get('status', 'Unknown'),
+                    'budget': project.get('cost', 0)
+                }
+                
+                if risk_assessment['risk_level'] == 'High':
+                    risk_zones['high_risk'].append(zone_data)
+                elif risk_assessment['risk_level'] == 'Medium':
+                    risk_zones['medium_risk'].append(zone_data)
+                else:
+                    risk_zones['low_risk'].append(zone_data)
+                    
+            except Exception as e:
+                print(f"Error processing project {project.get('name', 'Unknown')} for risk zones: {e}")
+                continue
+        
+        return jsonify({
+            'success': True,
+            'risk_zones': risk_zones,
+            'summary': {
+                'high_risk_count': len(risk_zones['high_risk']),
+                'medium_risk_count': len(risk_zones['medium_risk']),
+                'low_risk_count': len(risk_zones['low_risk']),
+                'total_projects': len(projects)
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Error getting risk zones: {e}")
+        return jsonify({'error': 'Failed to get risk zones'}), 500
+
+def get_coordinates_for_location(state, city, specific_location):
+    """Helper function to get coordinates for a location"""
+    # This is a simplified version - in production, you'd use a geocoding service
+    city_coordinates = {
+        'Mumbai': {'lat': 19.0760, 'lng': 72.8777},
+        'Delhi': {'lat': 28.7041, 'lng': 77.1025},
+        'Bangalore': {'lat': 12.9716, 'lng': 77.5946},
+        'Chennai': {'lat': 13.0827, 'lng': 80.2707},
+        'Kolkata': {'lat': 22.5726, 'lng': 88.3639},
+        'Ahmedabad': {'lat': 23.0225, 'lng': 72.5714},
+        'Jaipur': {'lat': 26.9124, 'lng': 75.7873},
+        'Lucknow': {'lat': 26.8467, 'lng': 80.9462},
+        'Patna': {'lat': 25.5941, 'lng': 85.1376},
+        'Chandigarh': {'lat': 30.7333, 'lng': 76.7794},
+        'Gurgaon': {'lat': 28.4595, 'lng': 77.0266}
+    }
+    
+    if city in city_coordinates:
+        return city_coordinates[city]
+    
+    # Default to India center
+    return {'lat': 20.5937, 'lng': 78.9629}
+
+@app.route('/api/row-risk/analytics', methods=['GET'])
+@jwt_required()
+def get_row_risk_analytics():
+    """Get RoW risk analytics for dashboard"""
+    try:
+        username = get_jwt_identity()
+        team_query = get_team_based_query(username)
+        
+        projects = list(projects_collection.find(team_query, {'_id': 0}))
+        
+        analytics = {
+            'total_projects': len(projects),
+            'risk_distribution': {'high': 0, 'medium': 0, 'low': 0},
+            'average_risk_score': 0,
+            'high_risk_projects': [],
+            'risk_by_state': {},
+            'risk_by_project_type': {},
+            'cost_impact_analysis': {
+                'high_risk_cost': 0,
+                'medium_risk_cost': 0,
+                'low_risk_cost': 0
+            }
+        }
+        
+        total_risk_score = 0
+        valid_projects = 0
+        
+        for project in projects:
+            try:
+                location_data = {
+                    'state': project.get('state', ''),
+                    'city': project.get('city', ''),
+                    'location': project.get('location', '')
+                }
+                
+                risk_assessment = calculate_row_risk_score(location_data)
+                risk_level = risk_assessment['risk_level'].lower()
+                risk_score = risk_assessment['risk_score']
+                
+                # Update risk distribution
+                analytics['risk_distribution'][risk_level] += 1
+                
+                # Update average risk score
+                total_risk_score += risk_score
+                valid_projects += 1
+                
+                # Track high risk projects
+                if risk_level == 'high':
+                    analytics['high_risk_projects'].append({
+                        'project_id': project.get('_id') or project.get('project_id'),
+                        'name': project.get('name', 'Unknown'),
+                        'location': f"{project.get('city', '')}, {project.get('state', '')}" if project.get('city') and project.get('state') else project.get('location', 'Unknown'),
+                        'risk_score': risk_score,
+                        'status': project.get('status', 'Unknown'),
+                        'budget': project.get('cost', 0)
+                    })
+                
+                # Risk by state
+                state = project.get('state', 'Unknown')
+                if state not in analytics['risk_by_state']:
+                    analytics['risk_by_state'][state] = {'high': 0, 'medium': 0, 'low': 0, 'total': 0}
+                analytics['risk_by_state'][state][risk_level] += 1
+                analytics['risk_by_state'][state]['total'] += 1
+                
+                # Risk by project type
+                project_type = project.get('tower_type') or project.get('substation_type') or 'Unknown'
+                if project_type not in analytics['risk_by_project_type']:
+                    analytics['risk_by_project_type'][project_type] = {'high': 0, 'medium': 0, 'low': 0, 'total': 0}
+                analytics['risk_by_project_type'][project_type][risk_level] += 1
+                analytics['risk_by_project_type'][project_type]['total'] += 1
+                
+                # Cost impact analysis
+                project_cost = int(project.get('cost', 0))
+                analytics['cost_impact_analysis'][f'{risk_level}_risk_cost'] += project_cost
+                
+            except Exception as e:
+                print(f"Error processing project {project.get('name', 'Unknown')} for analytics: {e}")
+                continue
+        
+        # Calculate average risk score
+        if valid_projects > 0:
+            analytics['average_risk_score'] = round(total_risk_score / valid_projects, 1)
+        
+        # Limit high risk projects to top 10
+        analytics['high_risk_projects'] = sorted(
+            analytics['high_risk_projects'], 
+            key=lambda x: x['risk_score'], 
+            reverse=True
+        )[:10]
+        
+        return jsonify({
+            'success': True,
+            'analytics': analytics,
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        }), 200
+        
+    except Exception as e:
+        print(f"Error getting RoW risk analytics: {e}")
+        return jsonify({'error': 'Failed to get RoW risk analytics'}), 500
+
 if __name__ == '__main__':
     debug_flag = os.getenv('FLASK_DEBUG', 'true').lower() == 'true'
     host = os.getenv('HOST', '0.0.0.0')

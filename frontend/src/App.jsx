@@ -19,6 +19,7 @@ import Teams from './components/Teams';
 import Notifications from './components/Notifications';
 import TeamInvitation from './components/TeamInvitation';
 import Navigation from './components/Navigation';
+import RowRiskDashboard from './components/RowRiskDashboard';
 import './App.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -46,6 +47,7 @@ const AppContent = () => {
           <Route path="/procurement" element={<PurchaseRequests />} />
           <Route path="/materials" element={<MaterialsPage />} />
           <Route path="/map" element={<MapView />} />
+          <Route path="/row-risk" element={<RowRiskDashboard />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/projects" element={<ProjectManagement />} />
           <Route path="/suppliers" element={<SupplierManagement />} />

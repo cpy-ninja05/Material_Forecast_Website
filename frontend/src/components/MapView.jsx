@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, CircleMarker } from 'react-leaflet';
 import { 
   MapPin, Package, DollarSign, Calendar, AlertTriangle, 
-  Filter, RefreshCw, Layers, Maximize2, Minimize2
+  Filter, RefreshCw, Layers, Maximize2, Minimize2, Shield
 } from 'lucide-react';
 import axios from 'axios';
 import 'leaflet/dist/leaflet.css';
@@ -28,15 +28,18 @@ const createCustomIcon = (color) => {
 
 const MapView = () => {
   const [projects, setProjects] = useState([]);
+  const [riskZones, setRiskZones] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     status: 'All Status',
     towerType: 'All Tower Types',
     substationType: 'All Substation Types',
-    state: 'All States'
+    state: 'All States',
+    riskLevel: 'All Risk Levels'
   });
   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // India center
   const [mapZoom, setMapZoom] = useState(5);
+  const [showRiskZones, setShowRiskZones] = useState(true);
 
   // Sample project data matching the image
   const sampleProjects = [
@@ -430,64 +433,86 @@ const MapView = () => {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/projects`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        // Convert backend project data to map format
-        const mapProjects = response.data.map((project, index) => {
-          console.log(`Processing project ${index + 1}:`, {
-            name: project.name,
-            state: project.state,
-            city: project.city,
-            location: project.location
+        const results = await Promise.allSettled([
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/projects`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/row-risk/risk-zones`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          })
+        ]);
+
+        const [projectsRes, riskZonesRes] = results;
+
+        if (projectsRes.status === 'fulfilled') {
+          // Convert backend project data to map format
+          const mapProjects = projectsRes.value.data.map((project, index) => {
+            console.log(`Processing project ${index + 1}:`, {
+              name: project.name,
+              state: project.state,
+              city: project.city,
+              location: project.location
+            });
+            
+            // Generate coordinates based on state/city and specific location
+            const coordinates = getCoordinatesForLocation(project.state, project.city, project.location);
+            
+            const mappedProject = {
+              id: project._id || project.project_id,
+              name: project.name,
+              location: project.city && project.state ? `${project.city}, ${project.state}` : project.location,
+              state: project.state,
+              city: project.city,
+              status: project.status,
+              type: project.tower_type || project.substation_type || 'Transmission Tower',
+              tower_type: project.tower_type,
+              substation_type: project.substation_type,
+              lat: coordinates.lat,
+              lng: coordinates.lng,
+              budget: parseInt(project.cost) || 0,
+              risk: "Medium" // Default risk level
+            };
+            
+            console.log(`Mapped project coordinates:`, {
+              name: mappedProject.name,
+              lat: mappedProject.lat,
+              lng: mappedProject.lng,
+              hasState: !!mappedProject.state,
+              hasCity: !!mappedProject.city
+            });
+            
+            return mappedProject;
+          }).filter(project => {
+            // Only show projects that have both state and city
+            const hasLocation = project.state && project.city;
+            console.log(`Project ${project.name} location check:`, {
+              state: project.state,
+              city: project.city,
+              hasLocation
+            });
+            return hasLocation;
           });
           
-          // Generate coordinates based on state/city and specific location
-          const coordinates = getCoordinatesForLocation(project.state, project.city, project.location);
-          
-          const mappedProject = {
-            id: project._id || project.project_id,
-            name: project.name,
-            location: project.city && project.state ? `${project.city}, ${project.state}` : project.location,
-            state: project.state,
-            city: project.city,
-            status: project.status,
-            type: project.tower_type || project.substation_type || 'Transmission Tower',
-            tower_type: project.tower_type,
-            substation_type: project.substation_type,
-            lat: coordinates.lat,
-            lng: coordinates.lng,
-            budget: parseInt(project.cost) || 0,
-            risk: "Medium" // Default risk level
-          };
-          
-          console.log(`Mapped project coordinates:`, {
-            name: mappedProject.name,
-            lat: mappedProject.lat,
-            lng: mappedProject.lng,
-            hasState: !!mappedProject.state,
-            hasCity: !!mappedProject.city
-          });
-          
-          return mappedProject;
-        }).filter(project => {
-          // Only show projects that have both state and city
-          const hasLocation = project.state && project.city;
-          console.log(`Project ${project.name} location check:`, {
-            state: project.state,
-            city: project.city,
-            hasLocation
-          });
-          return hasLocation;
-        });
-        
-        setProjects(mapProjects);
-        console.log('Loaded projects for map:', mapProjects);
+          setProjects(mapProjects);
+          console.log('Loaded projects for map:', mapProjects);
+        } else {
+          console.error('Failed to load projects:', projectsRes.reason);
+          setProjects(sampleProjects);
+        }
+
+        if (riskZonesRes.status === 'fulfilled') {
+          setRiskZones(riskZonesRes.value.data);
+          console.log('Loaded risk zones:', riskZonesRes.value.data);
+        } else {
+          console.error('Failed to load risk zones:', riskZonesRes.reason);
+        }
+
       } catch (error) {
-        console.error('Failed to load projects:', error);
+        console.error('Failed to load data:', error);
         // Fallback to sample data
         setProjects(sampleProjects);
       } finally {
@@ -530,11 +555,49 @@ const MapView = () => {
     }
   };
 
+  const getRiskColor = (riskLevel) => {
+    switch (riskLevel) {
+      case 'High': return '#ef4444'; // Red
+      case 'Medium': return '#f59e0b'; // Orange
+      case 'Low': return '#10b981'; // Green
+      default: return '#6b7280'; // Gray
+    }
+  };
+
+  const getRiskIcon = (riskLevel) => {
+    switch (riskLevel) {
+      case 'High': return '🔴';
+      case 'Medium': return '🟡';
+      case 'Low': return '🟢';
+      default: return '⚪';
+    }
+  };
+
+  const getRiskZoneRadius = (riskLevel) => {
+    switch (riskLevel) {
+      case 'High': return 15000; // 15km radius
+      case 'Medium': return 10000; // 10km radius
+      case 'Low': return 5000; // 5km radius
+      default: return 5000;
+    }
+  };
+
   const filteredProjects = projects.filter(project => {
     if (filters.status !== 'All Status' && project.status !== filters.status) return false;
     if (filters.towerType !== 'All Tower Types' && project.tower_type !== filters.towerType) return false;
     if (filters.substationType !== 'All Substation Types' && project.substation_type !== filters.substationType) return false;
     if (filters.state !== 'All States' && project.state !== filters.state) return false;
+    
+    // Risk level filtering
+    if (filters.riskLevel !== 'All Risk Levels') {
+      // Find project in risk zones data
+      const projectRisk = riskZones?.risk_zones?.high_risk?.find(p => p.project_id === project.id) ||
+                         riskZones?.risk_zones?.medium_risk?.find(p => p.project_id === project.id) ||
+                         riskZones?.risk_zones?.low_risk?.find(p => p.project_id === project.id);
+      
+      if (projectRisk && projectRisk.risk_level !== filters.riskLevel) return false;
+    }
+    
     return true;
   });
 
@@ -550,7 +613,7 @@ const MapView = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 flex-shrink-0">
         <div className="px-8 py-6">
@@ -561,7 +624,7 @@ const MapView = () => {
         </div>
       </div>
 
-      <div className="flex-1 p-8 space-y-6 overflow-hidden">
+      <div className="flex-1 p-8 space-y-6 overflow-y-auto">
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -627,17 +690,40 @@ const MapView = () => {
               ))}
             </select>
             
+            <select 
+              value={filters.riskLevel}
+              onChange={(e) => setFilters({...filters, riskLevel: e.target.value})}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option>All Risk Levels</option>
+              <option>High</option>
+              <option>Medium</option>
+              <option>Low</option>
+            </select>
+            
+            <button
+              onClick={() => setShowRiskZones(!showRiskZones)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                showRiskZones 
+                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Shield className="h-4 w-4" />
+              {showRiskZones ? 'Hide Risk Zones' : 'Show Risk Zones'}
+            </button>
+            
             <div className="ml-auto text-sm text-gray-600">
               Showing {filteredProjects.length} of {projects.length} projects
             </div>
           </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 min-h-0">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
           {/* Map */}
-          <div className="lg:col-span-3 flex flex-col min-h-0">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
-              <div className="flex-1 min-h-[400px] lg:min-h-0">
+          <div className="lg:col-span-3 flex flex-col">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+              <div className="h-[500px] lg:h-[980px]">
                 <MapContainer
                   center={mapCenter}
                   zoom={mapZoom}
@@ -649,53 +735,159 @@ const MapView = () => {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   />
                   
-                  {filteredProjects.map((project) => (
-                    <Marker
-                      key={project.id}
-                      position={[project.lat, project.lng]}
-                      icon={createCustomIcon(getMarkerColor(project.type))}
-                    >
-                      <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                        <div className="text-sm">
-                          <div className="font-semibold">{project.name}</div>
-                          <div className="text-gray-600">{project.location}</div>
-                        </div>
-                      </Tooltip>
+                  {/* Risk Zones */}
+                  {showRiskZones && riskZones && (
+                    <>
+                      {/* High Risk Zones */}
+                      {riskZones.risk_zones?.high_risk?.map((zone) => (
+                        <CircleMarker
+                          key={`high-${zone.project_id}`}
+                          center={[zone.coordinates.lat, zone.coordinates.lng]}
+                          radius={20}
+                          pathOptions={{
+                            color: '#ef4444',
+                            fillColor: '#ef4444',
+                            fillOpacity: 0.2,
+                            weight: 2
+                          }}
+                        >
+                          <Tooltip>
+                            <div className="text-sm">
+                              <div className="font-semibold text-red-600">🔴 High Risk Zone</div>
+                              <div>{zone.project_name}</div>
+                              <div className="text-gray-600">Risk Score: {zone.risk_score}</div>
+                            </div>
+                          </Tooltip>
+                        </CircleMarker>
+                      ))}
                       
-                      <Popup>
-                        <div className="p-2">
-                          <h3 className="font-semibold text-lg mb-2">{project.name}</h3>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex items-center">
-                              <MapPin className="h-4 w-4 mr-2 text-gray-500" />
-                              <span>{project.location}</span>
+                      {/* Medium Risk Zones */}
+                      {riskZones.risk_zones?.medium_risk?.map((zone) => (
+                        <CircleMarker
+                          key={`medium-${zone.project_id}`}
+                          center={[zone.coordinates.lat, zone.coordinates.lng]}
+                          radius={15}
+                          pathOptions={{
+                            color: '#f59e0b',
+                            fillColor: '#f59e0b',
+                            fillOpacity: 0.2,
+                            weight: 2
+                          }}
+                        >
+                          <Tooltip>
+                            <div className="text-sm">
+                              <div className="font-semibold text-yellow-600">🟡 Medium Risk Zone</div>
+                              <div>{zone.project_name}</div>
+                              <div className="text-gray-600">Risk Score: {zone.risk_score}</div>
                             </div>
-                            <div className="flex items-center">
-                              <DollarSign className="h-4 w-4 mr-2 text-gray-500" />
-                              <span>₹{(project.budget / 1000000).toFixed(1)}M</span>
+                          </Tooltip>
+                        </CircleMarker>
+                      ))}
+                      
+                      {/* Low Risk Zones */}
+                      {riskZones.risk_zones?.low_risk?.map((zone) => (
+                        <CircleMarker
+                          key={`low-${zone.project_id}`}
+                          center={[zone.coordinates.lat, zone.coordinates.lng]}
+                          radius={10}
+                          pathOptions={{
+                            color: '#10b981',
+                            fillColor: '#10b981',
+                            fillOpacity: 0.2,
+                            weight: 2
+                          }}
+                        >
+                          <Tooltip>
+                            <div className="text-sm">
+                              <div className="font-semibold text-green-600">🟢 Low Risk Zone</div>
+                              <div>{zone.project_name}</div>
+                              <div className="text-gray-600">Risk Score: {zone.risk_score}</div>
                             </div>
-                            <div className="flex items-center">
-                              <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(project.status)}`}>
-                                {project.status}
-                              </span>
-                            </div>
-                            <div className="flex items-center">
-                              <Package className="h-4 w-4 mr-2 text-gray-500" />
-                              <span>{project.tower_type || project.substation_type || project.type}</span>
-                            </div>
-                            {(project.tower_type || project.substation_type) && (
-                              <div className="flex items-center">
-                                <Layers className="h-4 w-4 mr-2 text-gray-500" />
-                                <span className="text-xs text-gray-500">
-                                  {project.tower_type ? `Tower: ${project.tower_type}` : `Substation: ${project.substation_type}`}
+                          </Tooltip>
+                        </CircleMarker>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Project Markers */}
+                  {filteredProjects.map((project) => {
+                    // Find project risk level
+                    const projectRisk = riskZones?.risk_zones?.high_risk?.find(p => p.project_id === project.id) ||
+                                       riskZones?.risk_zones?.medium_risk?.find(p => p.project_id === project.id) ||
+                                       riskZones?.risk_zones?.low_risk?.find(p => p.project_id === project.id);
+                    
+                    return (
+                      <Marker
+                        key={project.id}
+                        position={[project.lat, project.lng]}
+                        icon={createCustomIcon(getMarkerColor(project.type))}
+                      >
+                        <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                          <div className="text-sm">
+                            <div className="font-semibold">{project.name}</div>
+                            <div className="text-gray-600">{project.location}</div>
+                            {projectRisk && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span>{getRiskIcon(projectRisk.risk_level)}</span>
+                                <span className={`text-xs font-medium ${
+                                  projectRisk.risk_level === 'High' ? 'text-red-600' :
+                                  projectRisk.risk_level === 'Medium' ? 'text-yellow-600' :
+                                  'text-green-600'
+                                }`}>
+                                  {projectRisk.risk_level} Risk ({projectRisk.risk_score})
                                 </span>
                               </div>
                             )}
                           </div>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  ))}
+                        </Tooltip>
+                        
+                        <Popup>
+                          <div className="p-2">
+                            <h3 className="font-semibold text-lg mb-2">{project.name}</h3>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex items-center">
+                                <MapPin className="h-4 w-4 mr-2 text-gray-500" />
+                                <span>{project.location}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <DollarSign className="h-4 w-4 mr-2 text-gray-500" />
+                                <span>₹{(project.budget / 1000000).toFixed(1)}M</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(project.status)}`}>
+                                  {project.status}
+                                </span>
+                              </div>
+                              <div className="flex items-center">
+                                <Package className="h-4 w-4 mr-2 text-gray-500" />
+                                <span>{project.tower_type || project.substation_type || project.type}</span>
+                              </div>
+                              {projectRisk && (
+                                <div className="flex items-center">
+                                  <AlertTriangle className="h-4 w-4 mr-2 text-gray-500" />
+                                  <span className={`text-xs font-medium ${
+                                    projectRisk.risk_level === 'High' ? 'text-red-600' :
+                                    projectRisk.risk_level === 'Medium' ? 'text-yellow-600' :
+                                    'text-green-600'
+                                  }`}>
+                                    RoW Risk: {projectRisk.risk_level} ({projectRisk.risk_score}/100)
+                                  </span>
+                                </div>
+                              )}
+                              {(project.tower_type || project.substation_type) && (
+                                <div className="flex items-center">
+                                  <Layers className="h-4 w-4 mr-2 text-gray-500" />
+                                  <span className="text-xs text-gray-500">
+                                    {project.tower_type ? `Tower: ${project.tower_type}` : `Substation: ${project.substation_type}`}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    );
+                  })}
                 </MapContainer>
               </div>
             </div>
@@ -744,9 +936,66 @@ const MapView = () => {
               </div>
             </div>
 
+            {/* RoW Risk Statistics */}
+            {riskZones && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <Shield className="h-5 w-5 text-gray-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">RoW Risk Statistics</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">High Risk:</span>
+                    <span className="text-sm font-semibold text-red-600">
+                      {riskZones.summary?.high_risk_count || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Medium Risk:</span>
+                    <span className="text-sm font-semibold text-yellow-600">
+                      {riskZones.summary?.medium_risk_count || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Low Risk:</span>
+                    <span className="text-sm font-semibold text-green-600">
+                      {riskZones.summary?.low_risk_count || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Total Assessed:</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {riskZones.summary?.total_projects || 0}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Map Legend */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-h-98 ">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Map Legend</h3>
+              
+              {/* Risk Zones */}
+              {showRiskZones && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-800 mb-3">RoW Risk Zones</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 bg-red-500 rounded-full mr-3"></div>
+                      <span className="text-sm text-gray-600">High Risk Zone</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 bg-yellow-500 rounded-full mr-3"></div>
+                      <span className="text-sm text-gray-600">Medium Risk Zone</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
+                      <span className="text-sm text-gray-600">Low Risk Zone</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Tower Types */}
               <div className="mb-6">
@@ -771,32 +1020,6 @@ const MapView = () => {
                 </div>
               </div>
 
-              {/* Substation Types */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-800 mb-3">Substation Types</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 bg-red-500 rounded-full mr-3"></div>
-                    <span className="text-sm text-gray-600">132 kV (AIS/GIS)</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 bg-orange-500 rounded-full mr-3"></div>
-                    <span className="text-sm text-gray-600">220 kV (AIS/GIS)</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 bg-yellow-500 rounded-full mr-3"></div>
-                    <span className="text-sm text-gray-600">400 kV (AIS/GIS)</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 bg-lime-500 rounded-full mr-3"></div>
-                    <span className="text-sm text-gray-600">765 kV (AIS/GIS)</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 bg-cyan-500 rounded-full mr-3"></div>
-                    <span className="text-sm text-gray-600">HVDC</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
