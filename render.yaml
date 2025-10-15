@@ -1,0 +1,22 @@
+services:
+  # Frontend Service
+  - type: web
+    name: material-forecast-website
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # Backend Service  
+  - type: web
+    name: material-forecast-website-be
+    env: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.4
+
