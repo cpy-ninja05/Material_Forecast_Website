@@ -17,7 +17,6 @@ import SupplierManagement from './components/SupplierManagement';
 import PurchaseRequests from './components/PurchaseRequests';
 import Inventory from './components/Inventory';
 import Teams from './components/Teams';
-import Notifications from './components/Notifications';
 import TeamInvitation from './components/TeamInvitation';
 import Navigation from './components/Navigation';
 import './App.css';
@@ -54,7 +53,6 @@ const AppContent = () => {
           <Route path="/om" element={<OperationsMaintenance />} />
           <Route path="/dispatch" element={<LoadDispatch />} />
           <Route path="/teams" element={<Teams />} />
-          <Route path="/notifications" element={<Notifications />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           {/* Catch-all route for 404s */}
           <Route path="*" element={

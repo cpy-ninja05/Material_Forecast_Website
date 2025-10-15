@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Calculator, Map, ShoppingCart, Boxes, LogOut, Building, Users, Bell } from 'lucide-react';
+import { BarChart3, Calculator, Map, ShoppingCart, Boxes, LogOut, Building, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ui/ThemeToggle';
 import PlanGridLogo from '/PlanGrid.jpg';
@@ -21,7 +21,6 @@ const Navigation = () => {
     { name: 'Procurement', href: '/procurement', icon: ShoppingCart },
     { name: 'Inventory', href: '/inventory', icon: Boxes },
     { name: 'Teams', href: '/teams', icon: Users },
-    { name: 'Notifications', href: '/notifications', icon: Bell },
   ];
 
   // Load saved sidebar state from localStorage
