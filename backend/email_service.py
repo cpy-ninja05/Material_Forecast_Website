@@ -186,7 +186,28 @@ class EmailService:
             PLANGRID Team
             """
             
-            # Prefer Brevo HTTP API if configured (more reliable than SMTP)
+            # Try SendGrid first if configured (uses HTTPS, works on all platforms)
+            if self.sendgrid_api_key:
+                try:
+                    message = Mail(
+                        from_email=(self.from_email, self.from_name),
+                        to_emails=email,
+                        subject='Password Reset Request - PLANGRID',
+                        html_content=html_content,
+                        plain_text_content=text_content
+                    )
+                    sg = SendGridAPIClient(api_key=self.sendgrid_api_key)
+                    response = sg.send(message)
+                    print(f"SendGrid sent to {email}. Status: {response.status_code}")
+                    return True
+                except Exception as e:
+                    print(f"SendGrid error: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    if not self.email_fallback:
+                        return False
+            
+            # Try Brevo HTTP API if configured
             if self.brevo_api_key:
                 try:
                     resp = requests.post(
@@ -261,20 +282,8 @@ class EmailService:
                     if not self.email_fallback:
                         return False
             
-            if self.sendgrid_api_key and self.email_fallback:
-                # Create the email message
-                message = Mail(
-                    from_email=(self.from_email, self.from_name),
-                    to_emails=email,
-                    subject='Password Reset Request - PLANGRID',
-                    html_content=html_content,
-                    plain_text_content=text_content
-                )
-                sg = SendGridAPIClient(api_key=self.sendgrid_api_key)
-                response = sg.send(message)
-                print(f"SendGrid sent to {email}. Status: {response.status_code}")
-                return True
-            
+            # No email provider worked
+            print("No email provider successfully sent the password reset email")
             return False
         except Exception as e:
             print(f"Error sending password reset email: {e}")
@@ -321,7 +330,28 @@ class EmailService:
                 import re
                 text_content = re.sub(r'<[^>]+>', '', html_content)
             
-            # Prefer Brevo HTTP API if configured
+            # Try SendGrid first if configured (uses HTTPS, works on all platforms)
+            if self.sendgrid_api_key:
+                try:
+                    message = Mail(
+                        from_email=(self.from_email, self.from_name),
+                        to_emails=to_email,
+                        subject=subject,
+                        html_content=html_content,
+                        plain_text_content=text_content
+                    )
+                    sg = SendGridAPIClient(api_key=self.sendgrid_api_key)
+                    response = sg.send(message)
+                    print(f"SendGrid sent to {to_email}. Status: {response.status_code}")
+                    return True
+                except Exception as e:
+                    print(f"SendGrid error: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    if not self.email_fallback:
+                        return False
+            
+            # Try Brevo HTTP API if configured
             if self.brevo_api_key:
                 try:
                     resp = requests.post(
@@ -395,20 +425,8 @@ class EmailService:
                     if not self.email_fallback:
                         return False
             
-            # Try SendGrid as fallback
-            if self.sendgrid_api_key and self.email_fallback:
-                message = Mail(
-                    from_email=(self.from_email, self.from_name),
-                    to_emails=to_email,
-                    subject=subject,
-                    html_content=html_content,
-                    plain_text_content=text_content
-                )
-                sg = SendGridAPIClient(api_key=self.sendgrid_api_key)
-                response = sg.send(message)
-                print(f"SendGrid sent to {to_email}. Status: {response.status_code}")
-                return True
-            
+            # No email provider worked
+            print("No email provider successfully sent the email")
             return False
         except Exception as e:
             print(f"Error sending email: {e}")

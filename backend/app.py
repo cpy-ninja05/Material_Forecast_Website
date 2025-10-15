@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 import threading
 import time
 from collections import defaultdict
+from email_service import email_service
 
 load_dotenv()  # load environment variables from .env if present
 app = Flask(__name__)
@@ -427,13 +428,24 @@ def forgot_password():
         PlanGrid Team
         """
         
-        # Send email asynchronously in background thread to prevent blocking
+        # Send email using email_service (supports SendGrid HTTP API - works on Render)
+        # Use background thread to prevent blocking
+        def send_in_background():
+            success = email_service.send_password_reset_email(
+                email=email,
+                reset_token=reset_token,
+                username=user['username']
+            )
+            if success:
+                print(f"Password reset email sent successfully to {email}")
+            else:
+                print(f"Failed to send password reset email to {email}")
+        
         from threading import Thread
-        email_thread = Thread(target=send_async_email, args=(app, msg))
+        email_thread = Thread(target=send_in_background)
         email_thread.daemon = True
         email_thread.start()
         
-        # Return immediately without waiting for email to send
         print(f"Password reset email queued for {email}")
         return jsonify({'message': 'Password reset email sent successfully'}), 200
         
@@ -2644,9 +2656,25 @@ def invite_team_member(team_id):
         PlanGrid Team
         """
         
-        # Send email asynchronously in background thread to prevent blocking
+        # Prepare email content
+        html_content = msg.html
+        text_content = msg.body
+        
+        # Send email using email_service (supports SendGrid HTTP API - works on Render)
+        def send_in_background():
+            success = email_service.send_generic_email(
+                to_email=email,
+                subject=subject,
+                html_content=html_content,
+                text_content=text_content
+            )
+            if success:
+                print(f"Team invitation email sent successfully to {email}")
+            else:
+                print(f"Failed to send team invitation email to {email}")
+        
         from threading import Thread
-        email_thread = Thread(target=send_async_email, args=(app, msg))
+        email_thread = Thread(target=send_in_background)
         email_thread.daemon = True
         email_thread.start()
         
@@ -3161,9 +3189,25 @@ def invite_team_to_project(project_id):
         PlanGrid Team
         """
         
-        # Send email asynchronously in background thread to prevent blocking
+        # Prepare email content
+        html_content = msg.html
+        text_content = msg.body
+        
+        # Send email using email_service (supports SendGrid HTTP API - works on Render)
+        def send_in_background():
+            success = email_service.send_generic_email(
+                to_email=email,
+                subject=subject,
+                html_content=html_content,
+                text_content=text_content
+            )
+            if success:
+                print(f"Project invitation email sent successfully to {email}")
+            else:
+                print(f"Failed to send project invitation email to {email}")
+        
         from threading import Thread
-        email_thread = Thread(target=send_async_email, args=(app, msg))
+        email_thread = Thread(target=send_in_background)
         email_thread.daemon = True
         email_thread.start()
         
@@ -3179,6 +3223,49 @@ def invite_team_to_project(project_id):
         import traceback
         traceback.print_exc()
         return jsonify({'error': 'Failed to send invitation'}), 500
+
+@app.route('/api/test-email-config', methods=['GET'])
+def test_email_config():
+    """Test endpoint to check email configuration"""
+    config_status = {
+        'is_configured': email_service.is_configured(),
+        'sendgrid_api_key_set': bool(email_service.sendgrid_api_key),
+        'from_email': email_service.from_email or 'NOT SET',
+        'from_name': email_service.from_name,
+        'brevo_api_key_set': bool(email_service.brevo_api_key),
+        'smtp_configured': bool(email_service.smtp_host and email_service.smtp_user),
+    }
+    return jsonify(config_status), 200
+
+@app.route('/api/test-send-email', methods=['POST'])
+def test_send_email():
+    """Test endpoint to actually send a test email"""
+    data = request.get_json()
+    test_email = data.get('email', 'nikhil.20th65@gmail.com')
+    
+    try:
+        success = email_service.send_generic_email(
+            to_email=test_email,
+            subject='Test Email from PlanGrid',
+            html_content='<h1>Test Email</h1><p>If you received this, email is working!</p>',
+            text_content='Test Email\n\nIf you received this, email is working!'
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Test email sent to {test_email}. Check your inbox!'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Email sending failed. Check server logs for details.'
+            }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 def create_notification(user_id, notification_type, message, data=None):
     """Helper function to create notifications"""
