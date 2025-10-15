@@ -50,6 +50,45 @@ html {
 .dark .hover\:bg-gray-200:hover { background-color: #4b5563 !important; } /* gray-600 */
 .dark .hover\:text-gray-900:hover { color: #f3f4f6 !important; } /* gray-100 */
 
+/* Form elements dark mode styling */
+.dark select {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f3f4f6 !important; /* gray-100 */
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+.dark select:focus {
+  border-color: #3b82f6 !important; /* blue-500 */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.dark select option {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+.dark input {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f3f4f6 !important; /* gray-100 */
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+.dark input:focus {
+  border-color: #3b82f6 !important; /* blue-500 */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.dark textarea {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f3f4f6 !important; /* gray-100 */
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+.dark textarea:focus {
+  border-color: #3b82f6 !important; /* blue-500 */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;

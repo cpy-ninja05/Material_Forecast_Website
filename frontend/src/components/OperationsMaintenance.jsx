@@ -97,17 +97,17 @@ const OperationsMaintenance = () => {
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Create Asset</h2>
             <form onSubmit={submitAsset} className="grid grid-cols-2 gap-3">
-              <input className="border p-2 rounded" placeholder="Project ID" value={assetForm.project_id} onChange={(e)=>setAssetForm({...assetForm, project_id:e.target.value})} required />
-              <select className="border p-2 rounded" value={assetForm.asset_type} onChange={(e)=>setAssetForm({...assetForm, asset_type:e.target.value})}>
+              <input className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Project ID" value={assetForm.project_id} onChange={(e)=>setAssetForm({...assetForm, project_id:e.target.value})} required />
+              <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={assetForm.asset_type} onChange={(e)=>setAssetForm({...assetForm, asset_type:e.target.value})}>
                 {['tower','conductor','substation','transformer','hvdc_converter'].map(t=> <option key={t} value={t}>{t}</option>)}
               </select>
-              <input className="border p-2 rounded" placeholder="Name" value={assetForm.name} onChange={(e)=>setAssetForm({...assetForm, name:e.target.value})} />
-              <select className="border p-2 rounded" value={assetForm.status} onChange={(e)=>setAssetForm({...assetForm, status:e.target.value})}>
+              <input className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Name" value={assetForm.name} onChange={(e)=>setAssetForm({...assetForm, name:e.target.value})} />
+              <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={assetForm.status} onChange={(e)=>setAssetForm({...assetForm, status:e.target.value})}>
                 {['planned','active','maintenance','out_of_service'].map(s=> <option key={s} value={s}>{s}</option>)}
               </select>
-              <input className="border p-2 rounded" placeholder="Location" value={assetForm.location} onChange={(e)=>setAssetForm({...assetForm, location:e.target.value})} />
-              <input type="number" className="border p-2 rounded" placeholder="Voltage (kV)" value={assetForm.voltage_kv} onChange={(e)=>setAssetForm({...assetForm, voltage_kv:Number(e.target.value)})} />
-              <input className="border p-2 rounded col-span-2" placeholder="Specs" value={assetForm.specs} onChange={(e)=>setAssetForm({...assetForm, specs:e.target.value})} />
+              <input className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Location" value={assetForm.location} onChange={(e)=>setAssetForm({...assetForm, location:e.target.value})} />
+              <input type="number" className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Voltage (kV)" value={assetForm.voltage_kv} onChange={(e)=>setAssetForm({...assetForm, voltage_kv:Number(e.target.value)})} />
+              <input className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Specs" value={assetForm.specs} onChange={(e)=>setAssetForm({...assetForm, specs:e.target.value})} />
               <button className="bg-indigo-600 text-white py-2 rounded col-span-2">Create Asset</button>
             </form>
           </div>
@@ -121,7 +121,7 @@ const OperationsMaintenance = () => {
               <input className="border p-2 rounded" placeholder="Start (ISO)" value={outageForm.start_time} onChange={(e)=>setOutageForm({...outageForm, start_time:e.target.value})} />
               <input className="border p-2 rounded" placeholder="End (ISO)" value={outageForm.end_time} onChange={(e)=>setOutageForm({...outageForm, end_time:e.target.value})} />
               <input className="border p-2 rounded" placeholder="Cause" value={outageForm.cause} onChange={(e)=>setOutageForm({...outageForm, cause:e.target.value})} />
-              <select className="border p-2 rounded" value={outageForm.severity} onChange={(e)=>setOutageForm({...outageForm, severity:e.target.value})}>
+              <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={outageForm.severity} onChange={(e)=>setOutageForm({...outageForm, severity:e.target.value})}>
                 {['low','medium','high','critical'].map(s=> <option key={s} value={s}>{s}</option>)}
               </select>
               <input className="border p-2 rounded col-span-2" placeholder="Remarks" value={outageForm.remarks} onChange={(e)=>setOutageForm({...outageForm, remarks:e.target.value})} />

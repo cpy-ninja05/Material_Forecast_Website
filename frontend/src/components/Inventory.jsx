@@ -691,7 +691,7 @@ const Inventory = () => {
             <select 
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option>All Categories</option>
               {getUniqueCategories().map((category, index) => (
@@ -702,7 +702,7 @@ const Inventory = () => {
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="All Stock Status">All Stock Status</option>
               <option value="HEALTHY">Healthy</option>
@@ -1055,7 +1055,7 @@ const Inventory = () => {
                         setEditForm(prev => ({ ...prev, warehouse: e.target.value }));
                       }
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Warehouse</option>
                     {availableWarehouses.map((warehouse) => (
@@ -1336,7 +1336,7 @@ const Inventory = () => {
                   <select
                     value={addForm.warehouse}
                     onChange={(e) => handleWarehouseChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Warehouse</option>
                     {availableWarehouses.map((warehouse) => (
