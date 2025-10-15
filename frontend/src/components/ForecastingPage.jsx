@@ -299,21 +299,21 @@ const ForecastingPage = () => {
 
       <div className="p-8 space-y-8">
         {/* Project Parameters Form */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-            <Calculator className="h-5 w-5 mr-2 text-blue-600" />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
+            <Calculator className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
             Project Parameters
           </h2>
           
           {/* Project Selection */}
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
             <div className="flex items-center gap-2 mb-4">
-              <Building className="h-4 w-4 text-blue-600" />
-              <h3 className="text-sm font-medium text-blue-900">Select Project</h3>
+              <Building className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100">Select Project</h3>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Choose Project
                 </label>
                 <select
@@ -322,7 +322,7 @@ const ForecastingPage = () => {
                     const project = projects.find(p => p.project_id === e.target.value);
                     setSelectedProject(project || null);
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={projectsLoading}
                 >
                   <option value="">{projectsLoading ? 'Loading projects...' : projects.length === 0 ? 'No projects available' : 'Select a project'}</option>
@@ -346,81 +346,81 @@ const ForecastingPage = () => {
               </div>
             </div>
             {selectedProject && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200 mt-4">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700 mt-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <Building className="h-4 w-4 text-blue-600" />
-                  <h4 className="text-sm font-semibold text-blue-900">Project Details</h4>
+                  <Building className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100">Project Details</h4>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Project Name</div>
-                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-100 dark:border-blue-800 shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Project Name</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center justify-between">
                       <span>{selectedProject.name}</span>
-                      <span className="text-gray-400 text-xs">-</span>
+                      <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
                     </div>
                   </div>
                   
-                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Location</div>
-                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-100 dark:border-blue-800 shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Location</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center justify-between">
                       <span>{selectedProject.location}</span>
-                      <span className="text-green-600 text-xs">✓</span>
+                      <span className="text-green-600 dark:text-green-400 text-xs">✓</span>
                     </div>
                   </div>
                   
-                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Tower Type</div>
-                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-100 dark:border-blue-800 shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Tower Type</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center justify-between">
                       <span>{selectedProject.tower_type || 'Not set'}</span>
-                      <span className="text-green-600 text-xs">✓</span>
+                      <span className="text-green-600 dark:text-green-400 text-xs">✓</span>
                     </div>
                   </div>
                   
-                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Substation Type</div>
-                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-100 dark:border-blue-800 shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Substation Type</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center justify-between">
                       <span>{selectedProject.substation_type || 'Not set'}</span>
-                      <span className="text-green-600 text-xs">✓</span>
+                      <span className="text-green-600 dark:text-green-400 text-xs">✓</span>
                     </div>
                   </div>
                   
-                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Project Size</div>
-                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-100 dark:border-blue-800 shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Project Size</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center justify-between">
                       <span>{parseFloat(selectedProject.project_size_km || 0)} km</span>
-                      <span className="text-green-600 text-xs">✓</span>
+                      <span className="text-green-600 dark:text-green-400 text-xs">✓</span>
                     </div>
                   </div>
                   
-                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Budget</div>
-                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-100 dark:border-blue-800 shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Budget</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center justify-between">
                       <span>₹{(selectedProject.cost / 1000000).toFixed(1)}M</span>
-                      <span className="text-green-600 text-xs">✓</span>
+                      <span className="text-green-600 dark:text-green-400 text-xs">✓</span>
                     </div>
                   </div>
                   
-                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Start Date</div>
-                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-100 dark:border-blue-800 shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Start Date</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center justify-between">
                       <span>{selectedProject.start_date ? new Date(selectedProject.start_date).toLocaleDateString('en-GB') : 'Not set'}</span>
-                      <span className="text-green-600 text-xs">✓</span>
+                      <span className="text-green-600 dark:text-green-400 text-xs">✓</span>
                     </div>
                   </div>
                   
-                  <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm">
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">End Date</div>
-                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-100 dark:border-blue-800 shadow-sm">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">End Date</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center justify-between">
                       <span>{selectedProject.end_date ? new Date(selectedProject.end_date).toLocaleDateString('en-GB') : 'Not set'}</span>
-                      <span className="text-green-600 text-xs">✓</span>
+                      <span className="text-green-600 dark:text-green-400 text-xs">✓</span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="mt-3 p-2 bg-blue-100 rounded-md">
-                  <div className="text-xs text-blue-700 flex items-center gap-1">
-                    <span className="text-green-600">✓</span>
+                <div className="mt-3 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-md">
+                  <div className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                    <span className="text-green-600 dark:text-green-400">✓</span>
                     Fields marked with checkmark are automatically populated from project data
                   </div>
                 </div>
@@ -448,7 +448,7 @@ const ForecastingPage = () => {
                 name="region_risk_flag"
                 value={formData.region_risk_flag}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 required
               >
                 <option value="">Select Risk Level</option>
@@ -483,7 +483,7 @@ const ForecastingPage = () => {
                 name="project_start_month"
                 value={formData.project_start_month}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 required
               >
                 <option value="">Select Start Month</option>
@@ -501,7 +501,7 @@ const ForecastingPage = () => {
                 name="project_end_month"
                 value={formData.project_end_month}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 required
               >
                 <option value="">Select End Month</option>

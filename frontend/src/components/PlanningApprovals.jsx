@@ -115,19 +115,19 @@ const PlanningApprovals = () => {
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Create Project</h2>
             <form onSubmit={submitProject} className="grid grid-cols-2 gap-3">
-              <input className="border p-2 rounded col-span-2" placeholder="Name" value={projectForm.name} onChange={(e)=>setProjectForm({...projectForm, name:e.target.value})} required />
-              <select className="border p-2 rounded" value={projectForm.region} onChange={(e)=>setProjectForm({...projectForm, region:e.target.value})}>
+              <input className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Name" value={projectForm.name} onChange={(e)=>setProjectForm({...projectForm, name:e.target.value})} required />
+              <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={projectForm.region} onChange={(e)=>setProjectForm({...projectForm, region:e.target.value})}>
                 {['North','South','East','West','Central'].map(r=> <option key={r} value={r}>{r}</option>)}
               </select>
-              <input type="number" className="border p-2 rounded" placeholder="Voltage (kV)" value={projectForm.corridor_voltage_kv} onChange={(e)=>setProjectForm({...projectForm, corridor_voltage_kv:Number(e.target.value)})} />
-              <select className="border p-2 rounded" value={projectForm.technology} onChange={(e)=>setProjectForm({...projectForm, technology:e.target.value})}>
+              <input type="number" className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Voltage (kV)" value={projectForm.corridor_voltage_kv} onChange={(e)=>setProjectForm({...projectForm, corridor_voltage_kv:Number(e.target.value)})} />
+              <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={projectForm.technology} onChange={(e)=>setProjectForm({...projectForm, technology:e.target.value})}>
                 {['AC','HVDC'].map(t=> <option key={t} value={t}>{t}</option>)}
               </select>
-              <input type="number" className="border p-2 rounded" placeholder="Length (km)" value={projectForm.length_km} onChange={(e)=>setProjectForm({...projectForm, length_km:Number(e.target.value)})} />
-              <select className="border p-2 rounded" value={projectForm.substation_type} onChange={(e)=>setProjectForm({...projectForm, substation_type:e.target.value})}>
+              <input type="number" className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Length (km)" value={projectForm.length_km} onChange={(e)=>setProjectForm({...projectForm, length_km:Number(e.target.value)})} />
+              <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={projectForm.substation_type} onChange={(e)=>setProjectForm({...projectForm, substation_type:e.target.value})}>
                 {['AIS','GIS'].map(s=> <option key={s} value={s}>{s}</option>)}
               </select>
-              <input type="number" className="border p-2 rounded col-span-2" placeholder="Budget (₹)" value={projectForm.budget} onChange={(e)=>setProjectForm({...projectForm, budget:Number(e.target.value)})} />
+              <input type="number" className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Budget (₹)" value={projectForm.budget} onChange={(e)=>setProjectForm({...projectForm, budget:Number(e.target.value)})} />
               <button className="bg-indigo-600 text-white py-2 rounded col-span-2">Create Project</button>
             </form>
           </div>
@@ -135,20 +135,20 @@ const PlanningApprovals = () => {
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Create Permit</h2>
             <form onSubmit={submitPermit} className="grid grid-cols-2 gap-3">
-              <select className="border p-2 rounded" value={permitForm.project_id} onChange={(e)=>setPermitForm({...permitForm, project_id:e.target.value})} required>
+              <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={permitForm.project_id} onChange={(e)=>setPermitForm({...permitForm, project_id:e.target.value})} required>
                 <option value="">Select Project</option>
                 {projects.map(p=> <option key={p.id} value={p.id}>{p.name || `Project ${p.id}`}</option>)}
               </select>
-              <select className="border p-2 rounded" value={permitForm.permit_type} onChange={(e)=>setPermitForm({...permitForm, permit_type:e.target.value})}>
+              <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={permitForm.permit_type} onChange={(e)=>setPermitForm({...permitForm, permit_type:e.target.value})}>
                 {['RoW','Environment','Forest','CEA','CERC'].map(pt=> <option key={pt} value={pt}>{pt}</option>)}
               </select>
-              <select className="border p-2 rounded" value={permitForm.status} onChange={(e)=>setPermitForm({...permitForm, status:e.target.value})}>
+              <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={permitForm.status} onChange={(e)=>setPermitForm({...permitForm, status:e.target.value})}>
                 {['submitted','approved','rejected'].map(s=> <option key={s} value={s}>{s}</option>)}
               </select>
-              <input className="border p-2 rounded" placeholder="Document URL" value={permitForm.doc_url} onChange={(e)=>setPermitForm({...permitForm, doc_url:e.target.value})} />
-              <input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" onChange={handleUpload} className="border p-2 rounded" />
+              <input className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Document URL" value={permitForm.doc_url} onChange={(e)=>setPermitForm({...permitForm, doc_url:e.target.value})} />
+              <input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" onChange={handleUpload} className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
               {uploading && <div className="text-sm text-gray-500 col-span-2">Uploading...</div>}
-              <input className="border p-2 rounded col-span-2" placeholder="Remarks" value={permitForm.remarks} onChange={(e)=>setPermitForm({...permitForm, remarks:e.target.value})} />
+              <input className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Remarks" value={permitForm.remarks} onChange={(e)=>setPermitForm({...permitForm, remarks:e.target.value})} />
               <button className="bg-indigo-600 text-white py-2 rounded col-span-2">Create Permit</button>
             </form>
           </div>

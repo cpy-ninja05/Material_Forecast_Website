@@ -579,7 +579,7 @@ const MapView = () => {
             <select 
               value={filters.status}
               onChange={(e) => setFilters({...filters, status: e.target.value})}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option>All Status</option>
               <option>IN PROGRESS</option>
@@ -590,7 +590,7 @@ const MapView = () => {
             <select 
               value={filters.towerType}
               onChange={(e) => setFilters({...filters, towerType: e.target.value})}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option>All Tower Types</option>
               <option>Suspension</option>
@@ -602,7 +602,7 @@ const MapView = () => {
             <select 
               value={filters.substationType}
               onChange={(e) => setFilters({...filters, substationType: e.target.value})}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option>All Substation Types</option>
               <option>132 kV AIS</option>
@@ -619,7 +619,7 @@ const MapView = () => {
             <select 
               value={filters.state}
               onChange={(e) => setFilters({...filters, state: e.target.value})}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option>All States</option>
               {[...new Set(projects.map(p => p.state).filter(Boolean))].map(state => (
