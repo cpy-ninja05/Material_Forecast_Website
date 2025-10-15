@@ -68,15 +68,15 @@ const LoadDispatch = () => {
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="font-semibold text-gray-900 mb-4">Add Dispatch Log</h2>
           <form onSubmit={submit} className="grid grid-cols-3 gap-3">
-            <input className="border p-2 rounded" placeholder="Timestamp (ISO)" value={form.timestamp} onChange={(e)=>setForm({...form, timestamp:e.target.value})} />
-            <select className="border p-2 rounded" value={form.region} onChange={(e)=>setForm({...form, region:e.target.value})}>
+            <input className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Timestamp (ISO)" value={form.timestamp} onChange={(e)=>setForm({...form, timestamp:e.target.value})} />
+            <select className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={form.region} onChange={(e)=>setForm({...form, region:e.target.value})}>
               {['North','South','East','West','Central'].map(r=> <option key={r} value={r}>{r}</option>)}
             </select>
-            <input type="number" className="border p-2 rounded" placeholder="Demand (MW)" value={form.demand_mw} onChange={(e)=>setForm({...form, demand_mw:Number(e.target.value)})} />
-            <input type="number" className="border p-2 rounded" placeholder="Supply (MW)" value={form.supply_mw} onChange={(e)=>setForm({...form, supply_mw:Number(e.target.value)})} />
-            <input type="number" step="0.01" className="border p-2 rounded" placeholder="Freq (Hz)" value={form.frequency_hz} onChange={(e)=>setForm({...form, frequency_hz:Number(e.target.value)})} />
-            <input type="number" className="border p-2 rounded" placeholder="Voltage (kV)" value={form.voltage_kv} onChange={(e)=>setForm({...form, voltage_kv:Number(e.target.value)})} />
-            <input className="border p-2 rounded col-span-3" placeholder="Remarks" value={form.remarks} onChange={(e)=>setForm({...form, remarks:e.target.value})} />
+            <input type="number" className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Demand (MW)" value={form.demand_mw} onChange={(e)=>setForm({...form, demand_mw:Number(e.target.value)})} />
+            <input type="number" className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Supply (MW)" value={form.supply_mw} onChange={(e)=>setForm({...form, supply_mw:Number(e.target.value)})} />
+            <input type="number" step="0.01" className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Freq (Hz)" value={form.frequency_hz} onChange={(e)=>setForm({...form, frequency_hz:Number(e.target.value)})} />
+            <input type="number" className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Voltage (kV)" value={form.voltage_kv} onChange={(e)=>setForm({...form, voltage_kv:Number(e.target.value)})} />
+            <input className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 rounded col-span-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Remarks" value={form.remarks} onChange={(e)=>setForm({...form, remarks:e.target.value})} />
             <button className="bg-indigo-600 text-white py-2 rounded col-span-3">Add Log</button>
           </form>
         </div>

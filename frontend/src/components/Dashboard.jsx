@@ -439,7 +439,7 @@ const Dashboard = () => {
                 <select
                   value={selectedProjectId}
                   onChange={(e) => setSelectedProjectId(e.target.value)}
-                  className="border border-gray-300 rounded px-2 py-1 text-sm text-gray-700"
+                  className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All Projects</option>
                   {projects.map(p => (
