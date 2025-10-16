@@ -115,7 +115,7 @@ const LandingPage = () => {
   ];
 
   const stats = [
-    { number: "95%+", label: "Forecast Accuracy" },
+    { number: "90%+", label: "Forecast Accuracy" },
     { number: "7+", label: "Material Types" },
     { number: "30%", label: "Cost Reduction" },
     { number: "Real-time", label: "ROW Risk Analysis" }
