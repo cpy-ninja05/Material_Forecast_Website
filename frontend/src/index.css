@@ -16,6 +16,13 @@ html {
   @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
 }
 
+/* Add left padding for main content only on desktop to accommodate sidebar */
+@media (min-width: 768px) {
+  main.with-sidebar {
+    padding-left: var(--sidebar-width, 256px);
+  }
+}
+
 /* Scrollbar theming (optional enhancement) */
 *::-webkit-scrollbar {
   width: 10px;

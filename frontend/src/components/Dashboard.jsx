@@ -349,8 +349,8 @@ const Dashboard = () => {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="px-8 py-8">
-          <div className="flex flex-col items-start">
-            <div className="text-left w-full">
+          <div className="flex flex-col items-center md:items-start">
+            <div className="w-full text-center md:text-left">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{getGreeting()}, {user?.username || 'User'}!</h1>
               <p className="text-gray-600 dark:text-gray-300 mt-2">Here's what's happening with your materials forecasting platform today.</p>
             </div>

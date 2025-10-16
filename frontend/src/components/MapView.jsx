@@ -39,6 +39,7 @@ const MapView = () => {
     state: 'All States',
     riskLevel: 'All Risk Levels'
   });
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // India center
   const [mapZoom, setMapZoom] = useState(5);
   const [showRiskZones, setShowRiskZones] = useState(true);
@@ -345,16 +346,25 @@ const MapView = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 flex-shrink-0">
         <div className="px-8 py-6">
-          <div className="flex flex-col items-start">
-            <h1 className="text-3xl font-bold text-gray-900">Project Map</h1>
-            <p className="text-gray-600 mt-2">Interactive map showing all PLANGRID projects across India.</p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between items-center gap-3">
+            <div className="text-center md:text-left">
+              <h1 className="text-3xl font-bold text-gray-900">Project Map</h1>
+              <p className="text-gray-600 mt-2">Interactive map showing all PLANGRID projects across India.</p>
+            </div>
+            <button
+              onClick={() => setFiltersOpen(v => !v)}
+              className="md:hidden inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+            >
+              <Filter className="h-4 w-4" />
+              {filtersOpen ? 'Hide Filters' : 'Show Filters'}
+            </button>
           </div>
         </div>
       </div>
 
       <div className="flex-1 p-8 space-y-6 overflow-y-auto">
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 ${filtersOpen ? '' : 'hidden md:block'}`}>
           <div className="flex items-center gap-2 mb-4">
             <Filter className="h-5 w-5 text-gray-600" />
             <h3 className="text-lg font-semibold text-gray-900">Filters</h3>

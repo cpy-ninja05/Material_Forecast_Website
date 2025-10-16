@@ -41,7 +41,7 @@ const ProtectedLayout = ({ children }) => {
   return (
     <>
       <Navigation />
-      <main className="transition-all duration-300 ease-in-out min-h-screen" style={{ marginLeft: 'var(--sidebar-width, 256px)' }}>
+      <main className="with-sidebar transition-all duration-300 ease-in-out min-h-screen md:pt-0 pt-14" style={{ marginLeft: '0px' }}>
         {children}
       </main>
     </>

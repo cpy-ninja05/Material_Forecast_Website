@@ -995,12 +995,12 @@ const ProjectManagement = () => {
         {/* Header */}
       <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="px-8 py-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0 text-left">
-              <h1 className="text-left text-3xl font-bold text-gray-900 dark:text-gray-100">Project Management</h1>
-              <p className="text-left text-gray-600 dark:text-gray-300 mt-2">Manage projects, view forecasts, and track actual values</p>
+          <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-4">
+            <div className="min-w-0 text-center md:text-left">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Project Management</h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">Manage projects, view forecasts, and track actual values</p>
             </div>
-            <div className="shrink-0">
+            <div className="w-full md:w-auto flex justify-center md:justify-end">
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
@@ -1010,8 +1010,8 @@ const ProjectManagement = () => {
               </button>
             </div>
           </div>
-            </div>
-          </div>
+        </div>
+      </div>
           
       <div className="p-8 space-y-8">
         {/* View Toggle */}

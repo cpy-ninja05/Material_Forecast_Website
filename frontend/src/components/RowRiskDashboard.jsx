@@ -127,12 +127,12 @@ const RowRiskDashboard = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 items-center">
+            <div className="text-center md:text-left">
               <h1 className="text-3xl font-bold text-gray-900">Right of Way Risk Dashboard</h1>
               <p className="text-gray-600 mt-2">Predict and manage land acquisition challenges for PowerGrid projects</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full md:w-auto justify-center md:justify-end">
               <button
                 onClick={() => loadData(true)}
                 className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
