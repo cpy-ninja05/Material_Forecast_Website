@@ -62,16 +62,16 @@ const Teams = () => {
       if (response.data.created_teams && response.data.created_teams.length > 0) {
         const details = response.data.details;
         showToast.success(
-          `✅ Created ${response.data.created_teams.length} team(s)! (${details.total_projects} total projects in database)`
+          `✅ Created ${response.data.created_teams.length} team(s) for your projects!`
         );
         fetchTeams(); // Refresh teams list
       } else if (response.data.details) {
         const { total_projects, projects_with_teams } = response.data.details;
         showToast.info(
-          `All ${total_projects} project(s) in the database already have teams assigned. (${projects_with_teams} teams found)`
+          `All your ${total_projects} project(s) already have teams assigned.`
         );
       } else {
-        showToast.info(response.data.message || 'All projects already have teams assigned.');
+        showToast.info(response.data.message || 'All your projects already have teams assigned.');
       }
     } catch (error) {
       console.error('Error creating teams for existing projects:', error);
@@ -238,10 +238,19 @@ const Teams = () => {
             </div>
             <div className="flex gap-3">
               <button
+                onClick={fetchTeams}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 transition-colors text-sm flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Reload
+              </button>
+              <button
                 onClick={createTeamsForExistingProjects}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors text-sm"
               >
-                Create Teams for Projects
+                Create Teams for My Projects
               </button>
               <button
                 onClick={() => setShowCreateModal(true)}

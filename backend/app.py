@@ -1068,15 +1068,15 @@ def create_teams_for_existing_projects():
     """Create teams for existing projects that don't have teams yet"""
     try:
         username = get_jwt_identity()
-        print(f"User {username} is creating teams for existing projects")
-        # Get ALL projects from the database (not just user's projects)
-        all_projects = list(projects_collection.find({}))
+        print(f"User {username} is creating teams for their existing projects")
+        # Get ONLY projects created by the current user
+        all_projects = list(projects_collection.find({'created_by': username}))
         
-        print(f"Found {len(all_projects)} total projects in database")
+        print(f"Found {len(all_projects)} projects created by user {username}")
         
-        # Get all existing teams (from all users)
+        # Get existing teams for user's projects
         existing_teams_project_ids = set()
-        existing_teams = list(teams_collection.find({}))
+        existing_teams = list(teams_collection.find({'members.username': username}))
         
         for team in existing_teams:
             if 'project_id' in team and team['project_id']:
@@ -1118,7 +1118,8 @@ def create_teams_for_existing_projects():
                     print(f"Team already exists for project {project['name']}, skipping...")
                     continue
                 
-                # Build members list - include both owner and current user (if different)
+                # Build members list - only include the owner (current user)
+                # Since we only create teams for user's own projects, owner should always be the current user
                 members = [
                     {
                         'username': team_owner,
@@ -1126,15 +1127,6 @@ def create_teams_for_existing_projects():
                         'joined_at': datetime.now(timezone.utc)
                     }
                 ]
-                
-                # Add current user as admin if they're not the owner
-                if username != team_owner:
-                    members.append({
-                        'username': username,
-                        'role': 'admin',
-                        'joined_at': datetime.now(timezone.utc)
-                    })
-                    print(f"Added current user {username} as admin (owner is {team_owner})")
                 
                 # Create new team
                 team_data = {
@@ -1177,7 +1169,7 @@ def create_teams_for_existing_projects():
             print(f"Successfully created {len(created_teams)} teams")
             return jsonify({
                 'success': True,
-                'message': f'Created {len(created_teams)} team(s) for existing projects',
+                'message': f'Created {len(created_teams)} team(s) for your projects',
                 'created_teams': created_teams,
                 'details': {
                     'total_projects': len(all_projects),
@@ -1190,7 +1182,7 @@ def create_teams_for_existing_projects():
             print(f"No new teams created. {len(all_projects)} total projects, {len(existing_teams_project_ids)} already have teams")
             return jsonify({
                 'success': True,
-                'message': 'All projects in the database already have teams assigned',
+                'message': 'All your projects already have teams assigned',
                 'created_teams': [],
                 'details': {
                     'total_projects': len(all_projects),
@@ -1701,15 +1693,35 @@ def get_orders():
     try:
         username = get_jwt_identity()
         
-        # Get ALL orders from the database (not filtered by project)
-        # Many orders might not have project_id set
-        orders = list(orders_collection.find({}, {'_id': 0}).sort('created_at', -1))
+        # Get user's teams
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
         
-        print(f"GET /api/orders - Found {len(orders)} total orders for user {username}")
+        team_ids = [team['team_id'] for team in user_teams]
         
-        # Log first order for debugging
-        if orders:
-            print(f"Sample order structure: {orders[0]}")
+        # Get projects accessible to user (own projects + team projects)
+        accessible_projects = list(projects_collection.find({
+            '$or': [
+                {'created_by': username},
+                {'team_id': {'$in': team_ids}}
+            ]
+        }, {'project_id': 1, '_id': 0}))
+        
+        project_ids = [project['project_id'] for project in accessible_projects]
+        
+        # Get orders for accessible projects OR orders created by user (legacy orders without project_id)
+        orders_query = {
+            '$or': [
+                {'project_id': {'$in': project_ids}},  # Orders from accessible projects
+                {'created_by': username},  # Orders created by user (legacy)
+                {'project': {'$in': [p.get('name', '') for p in accessible_projects]}}  # Match by project name (legacy)
+            ]
+        }
+        
+        orders = list(orders_collection.find(orders_query, {'_id': 0}).sort('created_at', -1))
+        
+        print(f"GET /api/orders - Found {len(orders)} orders for user {username} (teams: {team_ids})")
         
         return jsonify(orders)
     except errors.PyMongoError as e:
@@ -2456,25 +2468,16 @@ def create_team():
 @app.route('/api/teams', methods=['GET'])
 @jwt_required()
 def get_user_teams():
-    """Get all teams for the current user"""
+    """Get all teams for the current user - only teams where user is an actual member"""
     username = get_jwt_identity()
     
     try:
-        # Get teams where user is a member OR teams for projects they created
-        user_projects = list(projects_collection.find(
-            {'created_by': username},
-            {'project_id': 1, '_id': 0}
-        ))
-        user_project_ids = [p['project_id'] for p in user_projects]
-        
+        # Only get teams where user is an actual member
         teams = list(teams_collection.find({
-            '$or': [
-                {'members.username': username},  # Teams where user is a member
-                {'project_id': {'$in': user_project_ids}}  # Teams for user's projects
-            ]
+            'members.username': username
         }, {'_id': 0}))
         
-        print(f"Found {len(teams)} teams for user {username}")
+        print(f"Found {len(teams)} teams where {username} is a member")
         
         return jsonify(teams)
     except errors.PyMongoError as e:
