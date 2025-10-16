@@ -6,6 +6,15 @@ import { showToast } from '../utils/toast';
 
 // Edit Project Form Component
 const EditProjectForm = ({ project, onSave, onCancel }) => {
+  // Helper function to format date for input[type="date"]
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    // If it's already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+    // Otherwise, extract the date portion from ISO string
+    return dateString.split('T')[0];
+  };
+
   const [formData, setFormData] = useState({
     name: project.name || '',
     location: project.location || '',
@@ -15,8 +24,8 @@ const EditProjectForm = ({ project, onSave, onCancel }) => {
     tower_type: project.tower_type || 'Suspension',
     substation_type: project.substation_type || '132 kV AIS',
     cost: project.cost || 0,
-    start_date: project.start_date || '',
-    end_date: project.end_date || '',
+    start_date: formatDateForInput(project.start_date),
+    end_date: formatDateForInput(project.end_date),
     project_size_km: project.project_size_km || 0,
     description: project.description || ''
   });
