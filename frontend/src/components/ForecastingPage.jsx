@@ -37,7 +37,7 @@ const ForecastingPage = () => {
     const loadProjects = async () => {
       try {
         console.log('Loading projects...');
-        const response = await axios.get('http://localhost:5000/api/projects', {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/projects`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -194,7 +194,7 @@ const ForecastingPage = () => {
     setProjectsLoading(true);
     try {
       console.log('Refreshing projects...');
-      const response = await axios.get('http://localhost:5000/api/projects', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/projects`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -236,7 +236,7 @@ const ForecastingPage = () => {
       console.log('Selected project:', selectedProject);
       console.log('Forecast month:', currentMonth);
       
-      const response = await axios.post('http://localhost:5000/api/forecast', forecastData, {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/forecast`, forecastData, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
