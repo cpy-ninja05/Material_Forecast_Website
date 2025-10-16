@@ -182,6 +182,22 @@ const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }) => {
                 {loading ? 'Signing in...' : 'LOGIN'}
               </button>
             </form>
+
+            {/* Sample Credentials Info */}
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+              <h3 className="font-semibold text-blue-900 text-lg mb-3">Sample Credentials</h3>
+              <div className="space-y-2">
+                <p className="text-base text-blue-800">
+                  <strong>Username:</strong> sample
+                </p>
+                <p className="text-base text-blue-800">
+                  <strong>Password:</strong> sample
+                </p>
+              </div>
+              <p className="text-sm text-blue-600 mt-3">
+                Use these credentials for demo access
+              </p>
+            </div>
           </div>
         </div>
       </div>
