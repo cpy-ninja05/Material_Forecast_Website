@@ -348,13 +348,6 @@ const RowRiskDashboard = () => {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-900">Project Risk Assessment</h3>
-              <button
-                onClick={() => setShowDetails(!showDetails)}
-                className="flex items-center gap-1 px-2 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-              >
-                {showDetails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                {showDetails ? 'Hide Details' : 'Show Details'}
-              </button>
             </div>
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-gray-600" />

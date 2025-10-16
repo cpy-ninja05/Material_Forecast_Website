@@ -421,8 +421,8 @@ const Dashboard = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Forecast vs Actual Trends */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 lg:col-span-2">
-            <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-0 lg:col-span-2 relative">
+            <div className="sticky top-0 z-10 px-6 pt-6 pb-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex flex-col items-center md:flex-row md:items-center md:justify-between">
               <div className="text-center md:text-left">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Actual vs Forecasted Demands</h3>
                 {trendData.length > 0 && (
@@ -457,7 +457,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="h-80 overflow-x-auto">
+            <div className="h-80 overflow-x-auto px-6 py-4">
               <div className="min-w-[720px] h-full">
               {trendData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -544,7 +544,7 @@ const Dashboard = () => {
               </div>
             </div>
             {trendData.length > 0 && (
-              <div className="flex items-center justify-center space-x-6 mt-4">
+              <div className="sticky bottom-0 z-10 px-6 pb-6 pt-2 bg-white dark:bg-gray-800 flex items-center justify-center space-x-6 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
                   <span className="text-sm text-gray-600">Forecast</span>
@@ -558,9 +558,11 @@ const Dashboard = () => {
         </div>
 
           {/* Project Status Distribution */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 overflow-x-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Project Status Distribution</h3>
-              <div className="h-80 min-w-[360px]">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-0 overflow-hidden">
+            <div className="sticky top-0 z-10 px-6 pt-6 pb-4 bg-white border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Project Status Distribution</h3>
+            </div>
+              <div className="h-80 min-w-[360px] overflow-x-auto px-6 py-4">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
