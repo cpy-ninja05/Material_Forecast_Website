@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Calculator, Map, ShoppingCart, Boxes, LogOut, Building, Users, Bell, Shield, Menu, X } from 'lucide-react';
+import { BarChart3, Map, ShoppingCart, Boxes, LogOut, Building, Users, Bell, Shield, Menu, X, ChartLine } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ui/ThemeToggle';
 import PlanGridLogo from '/PlanGrid.jpg';
@@ -19,7 +19,7 @@ const Navigation = () => {
     { name: 'Projects', href: '/projects', icon: Building },
     { name: 'Project Map', href: '/map', icon: Map },
     { name: 'RoW Risk', href: '/row-risk', icon: Shield },
-    { name: 'Forecasting', href: '/forecasting', icon: Calculator },
+    { name: 'Forecasting', href: '/forecasting', icon: ChartLine },
     { name: 'Procurement', href: '/procurement', icon: ShoppingCart },
     { name: 'Inventory', href: '/inventory', icon: Boxes },
     { name: 'Teams', href: '/teams', icon: Users },
@@ -113,9 +113,12 @@ const Navigation = () => {
       <aside 
         ref={sidebarRef}
         className={`fixed left-0 top-0 h-screen bg-gradient-to-b from-gray-100 to-gray-200 dark:from-[#0b1220] dark:to-[#111827] flex flex-col border-r border-gray-300 dark:border-gray-800 shadow-sm dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] transition-transform duration-300 ease-in-out z-40 ${
-          isResizing ? 'select-none shadow-lg' : ''
+          isResizing ? 'select-none shadow-lg dark:shadow-2xl' : ''
         } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
-        style={{ width: `${currentWidth}px` }}
+        style={{ 
+          width: `${currentWidth}px`,
+          transition: isResizing ? 'none' : undefined
+        }}
       >
         {/* Mobile close button inside drawer */}
         <button
