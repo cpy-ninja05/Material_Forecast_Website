@@ -636,29 +636,29 @@ const Dashboard = () => {
 
         {/* Monthly Averages Summary */}
         {trendData.length > 0 && (
-          <div className="mt-8 bg-gray-50 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Monthly Averages Summary</h4>
+          <div className="mt-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Monthly Averages Summary</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {trendData.map((month, index) => (
-                <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
+                <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-gray-900">{month.month}</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="font-medium text-gray-900 dark:text-white">{month.month}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {month.forecast_count} forecasts, {month.actual_count} actuals
                     </span>
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-sm">
-                      <span className="text-blue-600">Forecast Avg:</span>
-                      <span className="font-medium">{month.forecast.toFixed(1)} tons</span>
+                      <span className="text-blue-600 dark:text-blue-400">Forecast Avg:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{month.forecast.toFixed(1)} tons</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-green-600">Actual Avg:</span>
-                      <span className="font-medium">{month.actual.toFixed(1)} tons</span>
+                      <span className="text-green-600 dark:text-green-400">Actual Avg:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{month.actual.toFixed(1)} tons</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Variance:</span>
-                      <span className={`font-medium ${month.actual - month.forecast >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className="text-gray-600 dark:text-gray-400">Variance:</span>
+                      <span className={`font-medium ${month.actual - month.forecast >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {(month.actual - month.forecast).toFixed(1)} tons
                       </span>
                     </div>

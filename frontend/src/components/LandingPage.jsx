@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext';
 import { 
   BarChart3, 
   Calendar, 
@@ -19,6 +20,7 @@ import PlanGridLogo from '/PlanGrid.jpg';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const { isDark } = useTheme();
   const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const imageContainerRef = useRef(null);
@@ -120,27 +122,27 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm shadow-sm z-50">
+      <nav className="fixed top-0 w-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm dark:shadow-gray-800/50 z-50 border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
                 <img src={PlanGridLogo} alt="PlanGrid" className="w-full h-full object-cover" />
               </div>
-              <span className="text-2xl font-bold text-blue-600">PlanGrid</span>
+              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">PlanGrid</span>
             </div>
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/auth')}
-                className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
               >
                 Log In
               </button>
               <button
                 onClick={() => navigate('/auth')}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                className="bg-blue-600 dark:bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium"
               >
                 Get Started
               </button>
@@ -150,12 +152,12 @@ const LandingPage = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-white to-blue-50">
+      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h1 
-                className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight"
+                className="text-5xl md:text-6xl text-left font-bold text-gray-900 dark:text-white mb-6 leading-tight"
                 style={{
                   animation: 'fadeInUp 0.8s ease-out forwards',
                   opacity: 0
@@ -165,7 +167,7 @@ const LandingPage = () => {
                 <span className="text-blue-600">PlanGrid</span>
               </h1>
               <p 
-                className="text-xl text-gray-600 mb-8 leading-relaxed"
+                className="text-xl text-gray-600 text-left dark:text-gray-300 mb-8 leading-relaxed"
                 style={{
                   animation: 'fadeInUp 0.8s ease-out forwards',
                   animationDelay: '0.2s',
@@ -191,13 +193,13 @@ const LandingPage = () => {
                 </button>
                 <button
                   onClick={() => document.getElementById('features').scrollIntoView({ behavior: 'smooth' })}
-                  className="bg-white text-gray-700 px-8 py-4 rounded-lg hover:bg-gray-50 transition-all duration-300 font-semibold text-lg border border-gray-300 hover:border-gray-400"
+                  className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-8 py-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 font-semibold text-lg border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
                 >
                   See Features
                 </button>
               </div>
               <div 
-                className="flex items-center space-x-6 text-sm text-gray-600"
+                className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-300"
                 style={{
                   animation: 'fadeInUp 0.8s ease-out forwards',
                   animationDelay: '0.6s',
@@ -234,14 +236,15 @@ const LandingPage = () => {
                 }}
               >
                 {/* Dashboard preview image - Interactive 3D tilt effect + floating */}
-                <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden group-hover:shadow-3xl transition-all duration-500 transform group-hover:scale-[1.03] relative">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden group-hover:shadow-3xl transition-all duration-500 transform group-hover:scale-[1.03] relative">
                   <img 
-                    src={`${import.meta.env.BASE_URL}Dashboard.jpg`}
+                    src={`${import.meta.env.BASE_URL}${isDark ? 'Dashboard-dark.png' : 'Dashboard.jpg'}`}
                     alt="PlanGrid Dashboard Preview" 
                     className="w-full h-auto select-none"
                     draggable="false"
                     onError={(e) => {
                       console.error('Image failed to load:', e.target.src);
+                      console.log('Current theme isDark:', isDark);
                     }}
                   />
                   {/* Subtle overlay on hover */}
@@ -249,14 +252,14 @@ const LandingPage = () => {
                 </div>
                 {/* Decorative elements with subtle animation - pointer-events-none so they don't block hover */}
                 <div 
-                  className="absolute -top-4 -right-4 w-24 h-24 bg-blue-200 rounded-full opacity-20 blur-xl animate-pulse-slow pointer-events-none"
+                  className="absolute -top-4 -right-4 w-24 h-24 bg-blue-200 dark:bg-blue-500 rounded-full opacity-20 dark:opacity-30 blur-xl animate-pulse-slow pointer-events-none"
                   style={{
                     transform: `translate(${tilt.rotateY * -0.5}px, ${tilt.rotateX * 0.5}px)`,
                     transition: 'transform 0.15s ease-out'
                   }}
                 ></div>
                 <div 
-                  className="absolute -bottom-4 -left-4 w-32 h-32 bg-indigo-200 rounded-full opacity-20 blur-xl animate-pulse-slow pointer-events-none" 
+                  className="absolute -bottom-4 -left-4 w-32 h-32 bg-indigo-200 dark:bg-indigo-500 rounded-full opacity-20 dark:opacity-30 blur-xl animate-pulse-slow pointer-events-none" 
                   style={{
                     animationDelay: '1s',
                     transform: `translate(${tilt.rotateY * 0.8}px, ${tilt.rotateX * -0.8}px)`,
@@ -298,14 +301,14 @@ const LandingPage = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
+      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-blue-600 font-semibold mb-2 uppercase tracking-wide animate-fade-in">POWERFUL FEATURES</p>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 animate-slide-up">
+            <p className="text-blue-600 dark:text-blue-400 font-semibold mb-2 uppercase tracking-wide animate-fade-in">POWERFUL FEATURES</p>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4 animate-slide-up">
               Complete Material Forecasting Suite
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto animate-slide-up" style={{animationDelay: '0.1s'}}>
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto animate-slide-up" style={{animationDelay: '0.1s'}}>
               From AI predictions to ROW risk analysis - everything you need for accurate power grid project planning.
             </p>
           </div>
@@ -314,7 +317,7 @@ const LandingPage = () => {
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="bg-white p-8 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 group hover-lift"
+                className="bg-white dark:bg-gray-800 p-8 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-lg transition-all duration-300 group hover-lift"
                 style={{
                   animation: 'fadeInUp 0.8s ease-out forwards',
                   animationDelay: `${index * 0.15}s`,
@@ -324,8 +327,8 @@ const LandingPage = () => {
                 <div className="mb-4 transform group-hover:scale-105 transition-transform duration-300">
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors duration-300">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">{feature.title}</h3>
+                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -333,14 +336,14 @@ const LandingPage = () => {
       </section>
 
       {/* Power Grid Image Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-blue-50">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-6">
+              <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
                 Specialized for Power Grid Infrastructure
               </h2>
-              <p className="text-xl text-gray-600 mb-6 leading-relaxed">
+              <p className="text-xl text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
                 From transmission towers to substations, PlanGrid delivers accurate material forecasts 
                 and ROW risk assessments for India's power grid expansion projects.
               </p>
@@ -348,37 +351,37 @@ const LandingPage = () => {
                 <li className="flex items-start space-x-3 group">
                   <CheckCircle className="h-6 w-6 text-green-500 mt-1 flex-shrink-0 transform group-hover:scale-110 transition-all duration-300" />
                   <div className="transition-all duration-300 group-hover:translate-x-1">
-                    <span className="text-gray-700 block">
+                    <span className="text-gray-700 dark:text-gray-200 block">
                       <strong>Transmission Lines:</strong> Suspension, Tension, Terminal, and Transposition tower forecasts
                     </span>
-                    <span className="text-sm text-gray-500">132kV, 220kV, 400kV, 765kV & HVDC configurations</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">132kV, 220kV, 400kV, 765kV & HVDC configurations</span>
                   </div>
                 </li>
                 <li className="flex items-start space-x-3 group">
                   <CheckCircle className="h-6 w-6 text-green-500 mt-1 flex-shrink-0 transform group-hover:scale-110 transition-all duration-300" />
                   <div className="transition-all duration-300 group-hover:translate-x-1">
-                    <span className="text-gray-700 block">
+                    <span className="text-gray-700 dark:text-gray-200 block">
                       <strong>Material Prediction:</strong> Steel, Copper, Cement, Aluminum, Insulators, Conductors & Transformers
                     </span>
-                    <span className="text-sm text-gray-500">ML-powered quantity estimation with 95%+ accuracy</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">ML-powered quantity estimation with 95%+ accuracy</span>
                   </div>
                 </li>
                 <li className="flex items-start space-x-3 group">
                   <CheckCircle className="h-6 w-6 text-green-500 mt-1 flex-shrink-0 transform group-hover:scale-110 transition-all duration-300" />
                   <div className="transition-all duration-300 group-hover:translate-x-1">
-                    <span className="text-gray-700 block">
+                    <span className="text-gray-700 dark:text-gray-200 block">
                       <strong>ROW Risk Analysis:</strong> Population density, land-use, and terrain complexity assessment
                     </span>
-                    <span className="text-sm text-gray-500">High/Medium/Low risk zones with acquisition cost estimates</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">High/Medium/Low risk zones with acquisition cost estimates</span>
                   </div>
                 </li>
                 <li className="flex items-start space-x-3 group">
                   <CheckCircle className="h-6 w-6 text-green-500 mt-1 flex-shrink-0 transform group-hover:scale-110 transition-all duration-300" />
                   <div className="transition-all duration-300 group-hover:translate-x-1">
-                    <span className="text-gray-700 block">
+                    <span className="text-gray-700 dark:text-gray-200 block">
                       <strong>Substation Types:</strong> AIS and GIS configurations from 132kV to 765kV
                     </span>
-                    <span className="text-sm text-gray-500">Automated equipment and material requirement calculation</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Automated equipment and material requirement calculation</span>
                   </div>
                 </li>
               </ul>
@@ -408,11 +411,11 @@ const LandingPage = () => {
               </div>
               {/* Decorative corner accent - animated - pointer-events-none so they don't block hover */}
               <div 
-                className="absolute -top-4 -right-4 w-32 h-32 bg-blue-200 rounded-full opacity-20 blur-2xl animate-pulse-slow pointer-events-none"
+                className="absolute -top-4 -right-4 w-32 h-32 bg-blue-200 dark:bg-blue-500 rounded-full opacity-20 dark:opacity-30 blur-2xl animate-pulse-slow pointer-events-none"
                 style={{ animationDelay: '0s' }}
               ></div>
               <div 
-                className="absolute -bottom-4 -left-4 w-40 h-40 bg-indigo-200 rounded-full opacity-20 blur-2xl animate-pulse-slow pointer-events-none"
+                className="absolute -bottom-4 -left-4 w-40 h-40 bg-indigo-200 dark:bg-indigo-500 rounded-full opacity-20 dark:opacity-30 blur-2xl animate-pulse-slow pointer-events-none"
                 style={{ animationDelay: '1.5s' }}
               ></div>
             </div>
@@ -421,14 +424,14 @@ const LandingPage = () => {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-blue-600 font-semibold mb-2 uppercase tracking-wide">HOW IT WORKS</p>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            <p className="text-blue-600 dark:text-blue-400 font-semibold mb-2 uppercase tracking-wide">HOW IT WORKS</p>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
               Simple process, powerful results
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Get started in minutes and see improved team productivity.
             </p>
           </div>
@@ -445,18 +448,18 @@ const LandingPage = () => {
                 }}
               >
                 <div className="relative mb-6">
-                  <div className="w-24 h-24 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto transform group-hover:scale-105 transition-all duration-300 group-hover:bg-blue-100">
+                  <div className="w-24 h-24 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto transform group-hover:scale-105 transition-all duration-300 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50">
                     {step.icon}
                   </div>
-                  <div className="absolute -top-2 -right-2 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md group-hover:bg-blue-700 transition-colors duration-300">
+                  <div className="absolute -top-2 -right-2 w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md group-hover:bg-blue-700 dark:group-hover:bg-blue-600 transition-colors duration-300">
                     {step.step}
                   </div>
                   {index < howItWorks.length - 1 && (
-                    <div className="hidden lg:block absolute top-12 -right-12 w-24 h-0.5 bg-blue-200"></div>
+                    <div className="hidden lg:block absolute top-12 -right-12 w-24 h-0.5 bg-blue-200 dark:bg-blue-800"></div>
                   )}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors duration-300">{step.title}</h3>
-                <p className="text-gray-600">{step.description}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">{step.title}</h3>
+                <p className="text-gray-600 dark:text-gray-300">{step.description}</p>
               </div>
             ))}
           </div>
