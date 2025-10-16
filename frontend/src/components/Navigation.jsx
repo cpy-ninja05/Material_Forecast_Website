@@ -113,9 +113,12 @@ const Navigation = () => {
       <aside 
         ref={sidebarRef}
         className={`fixed left-0 top-0 h-screen bg-gradient-to-b from-gray-100 to-gray-200 dark:from-[#0b1220] dark:to-[#111827] flex flex-col border-r border-gray-300 dark:border-gray-800 shadow-sm dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] transition-transform duration-300 ease-in-out z-40 ${
-          isResizing ? 'select-none shadow-lg' : ''
+          isResizing ? 'select-none shadow-lg dark:shadow-2xl' : ''
         } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
-        style={{ width: `${currentWidth}px` }}
+        style={{ 
+          width: `${currentWidth}px`,
+          transition: isResizing ? 'none' : undefined
+        }}
       >
         {/* Mobile close button inside drawer */}
         <button
