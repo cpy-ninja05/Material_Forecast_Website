@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Calculator, Map, ShoppingCart, Boxes, LogOut, Building, Users, Bell, Shield, Menu, X } from 'lucide-react';
+import { BarChart3, Map, ShoppingCart, Boxes, LogOut, Building, Users, Bell, Shield, Menu, X, ChartLine } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ui/ThemeToggle';
 import PlanGridLogo from '/PlanGrid.jpg';
@@ -19,7 +19,7 @@ const Navigation = () => {
     { name: 'Projects', href: '/projects', icon: Building },
     { name: 'Project Map', href: '/map', icon: Map },
     { name: 'RoW Risk', href: '/row-risk', icon: Shield },
-    { name: 'Forecasting', href: '/forecasting', icon: Calculator },
+    { name: 'Forecasting', href: '/forecasting', icon: ChartLine },
     { name: 'Procurement', href: '/procurement', icon: ShoppingCart },
     { name: 'Inventory', href: '/inventory', icon: Boxes },
     { name: 'Teams', href: '/teams', icon: Users },
