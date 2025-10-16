@@ -603,7 +603,7 @@ const Dashboard = () => {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-6 space-y-2">
+            <div className="mt-2 px-6 pb-6 pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
