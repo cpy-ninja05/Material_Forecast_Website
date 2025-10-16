@@ -30,7 +30,8 @@ export const geocodeLocation = async (locationString) => {
     
     // Encode the location string for URL
     const encodedLocation = encodeURIComponent(locationString);
-    const url = `${GEOAPIFY_BASE_URL}?text=${encodedLocation}&apiKey=${GEOAPIFY_API_KEY}`;
+    // Add filter to restrict results to India (countrycode:in) for better accuracy
+    const url = `${GEOAPIFY_BASE_URL}?text=${encodedLocation}&filter=countrycode:in&apiKey=${GEOAPIFY_API_KEY}`;
     
     const response = await fetch(url);
     
@@ -47,6 +48,7 @@ export const geocodeLocation = async (locationString) => {
     // Extract coordinates from the first feature
     const feature = data.features[0];
     const coordinates = feature.geometry.coordinates;
+    const properties = feature.properties || {};
     
     // In GeoJSON Point coordinates: [longitude, latitude]
     // User specified: "longitude is 1 and latitude is 0"
@@ -56,10 +58,14 @@ export const geocodeLocation = async (locationString) => {
       lng: coordinates[0] // longitude from coordinates[0]
     };
     
+    // Log geocoded details for verification
+    const geocodedCity = properties.city || 'N/A';
+    const geocodedState = properties.state || 'N/A';
+    console.log(`Successfully geocoded '${locationString}' -> ${JSON.stringify(result)} (Geocoded as: ${geocodedCity}, ${geocodedState})`);
+    
     // Cache the result
     geocodingCache.set(cacheKey, result);
     
-    console.log(`Successfully geocoded ${locationString}:`, result);
     return result;
     
   } catch (error) {

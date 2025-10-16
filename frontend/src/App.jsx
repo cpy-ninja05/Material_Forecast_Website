@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import LandingPage from './components/LandingPage';
 import AuthPage from './components/AuthPage';
 import ResetPassword from './components/ResetPassword';
 import Dashboard from './components/Dashboard';
@@ -36,37 +37,12 @@ const ProtectedRoute = ({ children }) => {
   return user ? children : <Navigate to="/auth" replace />;
 };
 
-const AppContent = () => {
+const ProtectedLayout = ({ children }) => {
   return (
     <>
       <Navigation />
       <main className="transition-all duration-300 ease-in-out min-h-screen" style={{ marginLeft: 'var(--sidebar-width, 256px)' }}>
-        <Routes>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/forecasting" element={<ForecastingPage />} />
-          <Route path="/procurement" element={<PurchaseRequests />} />
-          <Route path="/materials" element={<MaterialsPage />} />
-          <Route path="/map" element={<MapView />} />
-          <Route path="/row-risk" element={<RowRiskDashboard />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/projects" element={<ProjectManagement />} />
-          <Route path="/suppliers" element={<SupplierManagement />} />
-          <Route path="/planning" element={<PlanningApprovals />} />
-          <Route path="/om" element={<OperationsMaintenance />} />
-          <Route path="/dispatch" element={<LoadDispatch />} />
-          <Route path="/teams" element={<Teams />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          {/* Catch-all route for 404s */}
-          <Route path="*" element={
-            <div className="flex items-center justify-center min-h-screen">
-              <div className="text-center">
-                <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">404</h1>
-                <p className="text-gray-600 dark:text-gray-400 mb-8">Page not found</p>
-                <Navigate to="/dashboard" replace />
-              </div>
-            </div>
-          } />
-        </Routes>
+        {children}
       </main>
     </>
   );
@@ -78,12 +54,102 @@ function App() {
       <AuthProvider>
         <Router>
           <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/team-invitation" element={<TeamInvitation />} />
-            <Route path="/*" element={
+            
+            {/* Protected routes */}
+            <Route path="/dashboard" element={
               <ProtectedRoute>
-                <AppContent />
+                <ProtectedLayout>
+                  <Dashboard />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/forecasting" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <ForecastingPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/procurement" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <PurchaseRequests />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/materials" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <MaterialsPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/map" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <MapView />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/row-risk" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <RowRiskDashboard />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/inventory" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <Inventory />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/projects" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <ProjectManagement />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/suppliers" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <SupplierManagement />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/planning" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <PlanningApprovals />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/om" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <OperationsMaintenance />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dispatch" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <LoadDispatch />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/teams" element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <Teams />
+                </ProtectedLayout>
               </ProtectedRoute>
             } />
           </Routes>

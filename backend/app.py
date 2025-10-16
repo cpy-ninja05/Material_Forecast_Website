@@ -1277,7 +1277,12 @@ def get_dashboard_metrics():
         print(f"Active projects for {username}: {active_projects}")
         
         # Calculate forecast accuracy from stored actual values (new schema)
-        raw = list(project_forecasts_collection.find({}))
+        # Get accessible project IDs for filtering forecasts
+        accessible_projects_list = list(projects_collection.find(accessible_projects_query, {'project_id': 1, '_id': 0}))
+        accessible_project_ids = [p['project_id'] for p in accessible_projects_list]
+        
+        # Filter forecasts by accessible projects only
+        raw = list(project_forecasts_collection.find({'project_id': {'$in': accessible_project_ids}}))
         forecasts_with_actuals = []
         for doc in raw:
             for f in doc.get('forecasts', []):
@@ -1323,16 +1328,23 @@ def get_dashboard_metrics():
             forecast_accuracy = 0.0
             print("No forecasts with actual values found")
         
-        # Get pending orders count from orders collection
-        # Count all orders (not filtered by project since many orders might not have project_id)
+        # Get pending orders count from orders collection (filtered by accessible projects)
+        orders_query = {
+            '$or': [
+                {'project_id': {'$in': accessible_project_ids}},
+                {'created_by': username}
+            ]
+        }
+        
         pending_orders = orders_collection.count_documents({
+            **orders_query,
             'status': 'PENDING'
         })
         
-        # Get total orders count from orders collection
-        total_orders = orders_collection.count_documents({})
+        # Get total orders count from orders collection (filtered)
+        total_orders = orders_collection.count_documents(orders_query)
         
-        print(f"Orders data for {username}: pending={pending_orders}, total={total_orders}")
+        print(f"Orders data for {username}: pending={pending_orders}, total={total_orders} (filtered by accessible projects)")
         
         # Calculate projects added this month (team-based)
         current_month = datetime.now(timezone.utc).strftime('%Y-%m')
@@ -1435,31 +1447,38 @@ def get_dashboard_trends():
                     monthly_data[month]['forecast_total'] += total_forecast
                     monthly_data[month]['forecast_count'] += 1
                     
-                    # Use stored actual values
-                    if 'actual_values' in forecast and forecast['actual_values'] is not None:
+                    # Use ONLY manually entered actual values (no random generation)
+                    # If not entered, treat as 0
+                    if 'actual_values' in forecast and forecast['actual_values'] is not None and forecast['actual_values']:
                         total_actual = forecast.get('_calc_actual_total', sum_numeric_values(forecast.get('actual_values', {})))
                         monthly_data[month]['actual_total'] += total_actual
                         monthly_data[month]['actual_count'] += 1
                         print(f"Added actual values for {month}: {total_actual} (project: {forecast.get('project_id', 'unknown')})")
                     else:
-                        # Fallback: generate if no actual values stored
-                        import random
-                        variation = random.uniform(0.85, 1.15)
-                        total_actual = total_forecast * variation
-                        monthly_data[month]['actual_total'] += total_actual
+                        # No actual values entered - treat as 0
+                        monthly_data[month]['actual_total'] += 0
                         monthly_data[month]['actual_count'] += 1
-                        print(f"Generated actual values for {month}: {total_actual} (project: {forecast.get('project_id', 'unknown')})")
+                        print(f"Actual values for {month} not entered for project {forecast.get('project_id', 'unknown')} - treating as 0")
                     
                 except (TypeError, ValueError) as e:
                     print(f"Error processing forecast predictions: {e}")
                     continue
         
-        # Convert to array and format for chart (calculate averages)
+        # Convert to array and format for chart
         trend_data = []
         for month_key, data in sorted(monthly_data.items()):
-            # Calculate averages
-            avg_forecast = data['forecast_total'] / data['forecast_count'] if data['forecast_count'] > 0 else 0
-            avg_actual = data['actual_total'] / data['actual_count'] if data['actual_count'] > 0 else 0
+            # If specific project selected: use totals
+            # If no project filter (dashboard view): use averages
+            if project_filter:
+                # Specific project selected - show actual totals
+                forecast_value = data['forecast_total']
+                actual_value = data['actual_total']
+                print(f"Month {month_key} (Project {project_filter}): forecast={forecast_value:.1f}, actual={actual_value:.1f}")
+            else:
+                # Dashboard view - show averages across all accessible projects
+                forecast_value = data['forecast_total'] / data['forecast_count'] if data['forecast_count'] > 0 else 0
+                actual_value = data['actual_total'] / data['actual_count'] if data['actual_count'] > 0 else 0
+                print(f"Month {month_key} (Average): forecast={forecast_value:.1f} (from {data['forecast_count']} projects), actual={actual_value:.1f} (from {data['actual_count']} projects with actuals)")
             
             # Convert YYYY-MM to month name
             try:
@@ -1467,12 +1486,11 @@ def get_dashboard_trends():
                 month_name = month_date.strftime('%b')
                 trend_data.append({
                     'month': month_name,
-                    'forecast': round(avg_forecast, 1),
-                    'actual': round(avg_actual, 1),
+                    'forecast': round(forecast_value, 1),
+                    'actual': round(actual_value, 1),  # Always return a value (0 if not entered)
                     'forecast_count': data['forecast_count'],
                     'actual_count': data['actual_count']
                 })
-                print(f"Month {month_name}: avg_forecast={avg_forecast:.1f}, avg_actual={avg_actual:.1f} (from {data['forecast_count']} forecasts, {data['actual_count']} actuals)")
             except ValueError as e:
                 print(f"Error parsing month {month_key}: {e}")
                 continue
@@ -1535,10 +1553,10 @@ def get_project_forecast_by_month(project_id, month):
     except Exception as e:
         return jsonify({'error': f'Failed to fetch forecast: {str(e)}'}), 500
 
-# Generate dynamic actual values for comparison
+# Get actual values for a project and month
 @app.route('/api/projects/<project_id>/forecasts/<month>/actuals', methods=['GET'])
 @jwt_required()
-def generate_actual_values(project_id, month):
+def get_actual_values(project_id, month):
     try:
         username = get_jwt_identity()
         
@@ -1572,25 +1590,28 @@ def generate_actual_values(project_id, month):
         if not forecast:
             return jsonify({'error': f'No forecast found for project {project_id} in month {month}'}), 404
         
-        # Generate dynamic actual values based on forecast + some variation
-        import random
-        actual_values = {}
+        # Return stored actual values if available, otherwise return empty
+        actual_values = forecast.get('actual_values', {})
         
-        for material, forecast_value in forecast['predictions'].items():
-            # Generate actual value with ±10% variation from forecast
-            variation = random.uniform(0.85, 1.15)  # 85% to 115% of forecast
-            actual_value = forecast_value * variation
-            actual_values[material] = round(actual_value, 2)
+        if not actual_values:
+            return jsonify({
+                'forecast_month': month,
+                'project_id': project_id,
+                'forecast_values': forecast['predictions'],
+                'actual_values': {},
+                'message': 'No actual values entered yet for this month',
+                'retrieved_at': datetime.now(timezone.utc).isoformat()
+            })
         
         return jsonify({
             'forecast_month': month,
             'project_id': project_id,
             'forecast_values': forecast['predictions'],
             'actual_values': actual_values,
-            'generated_at': datetime.now(timezone.utc).isoformat()
+            'retrieved_at': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
-        return jsonify({'error': f'Failed to generate actual values: {str(e)}'}), 500
+        return jsonify({'error': f'Failed to retrieve actual values: {str(e)}'}), 500
 
 # Get all forecasts for a project (month-wise, new schema)
 @app.route('/api/projects/<project_id>/forecasts', methods=['GET'])
@@ -3791,7 +3812,7 @@ def get_risk_zones():
         username = get_jwt_identity()
         team_query = get_team_based_query(username)
         
-        projects = list(projects_collection.find(team_query, {'_id': 0}))
+        projects = list(projects_collection.find(team_query))
         
         risk_zones = {
             'high_risk': [],
@@ -3817,7 +3838,7 @@ def get_risk_zones():
                 )
                 
                 zone_data = {
-                    'project_id': project.get('_id') or project.get('project_id'),
+                    'project_id': str(project.get('_id')) or project.get('project_id'),
                     'project_name': project.get('name', 'Unknown'),
                     'location': f"{project.get('city', '')}, {project.get('state', '')}" if project.get('city') and project.get('state') else project.get('location', 'Unknown'),
                     'coordinates': coordinates,
@@ -3855,27 +3876,82 @@ def get_risk_zones():
         return jsonify({'error': 'Failed to get risk zones'}), 500
 
 def get_coordinates_for_location(state, city, specific_location):
-    """Helper function to get coordinates for a location"""
-    # This is a simplified version - in production, you'd use a geocoding service
-    city_coordinates = {
-        'Mumbai': {'lat': 19.0760, 'lng': 72.8777},
-        'Delhi': {'lat': 28.7041, 'lng': 77.1025},
-        'Bangalore': {'lat': 12.9716, 'lng': 77.5946},
-        'Chennai': {'lat': 13.0827, 'lng': 80.2707},
-        'Kolkata': {'lat': 22.5726, 'lng': 88.3639},
-        'Ahmedabad': {'lat': 23.0225, 'lng': 72.5714},
-        'Jaipur': {'lat': 26.9124, 'lng': 75.7873},
-        'Lucknow': {'lat': 26.8467, 'lng': 80.9462},
-        'Patna': {'lat': 25.5941, 'lng': 85.1376},
-        'Chandigarh': {'lat': 30.7333, 'lng': 76.7794},
-        'Gurgaon': {'lat': 28.4595, 'lng': 77.0266}
-    }
+    """Helper function to get coordinates for a location using Geoapify API"""
+    import urllib.parse
+    import requests
     
-    if city in city_coordinates:
-        return city_coordinates[city]
-    
-    # Default to India center
-    return {'lat': 20.5937, 'lng': 78.9629}
+    try:
+        # Clean and normalize input
+        clean_state = state.strip() if state else ''
+        clean_city = city.strip() if city else ''
+        clean_specific = specific_location.strip() if specific_location else ''
+        
+        print(f"Input data - State: '{clean_state}', City: '{clean_city}', Specific: '{clean_specific}'")
+        
+        # Build location string - be very explicit about state to avoid cross-state confusion
+        location_string = None
+        
+        if clean_city and clean_state:
+            # Most accurate: "City, State, India"
+            location_string = f"{clean_city}, {clean_state}, India"
+        elif clean_state and clean_specific:
+            # Fallback: "Specific Location, State, India"
+            location_string = f"{clean_specific}, {clean_state}, India"
+        elif clean_state:
+            # Last resort: "State, India" - will geocode to state capital
+            location_string = f"{clean_state}, India"
+        else:
+            print("No valid location data provided, using India center")
+            return {'lat': 20.5937, 'lng': 78.9629}
+        
+        # Use Geoapify geocoding API with bias towards India
+        GEOAPIFY_API_KEY = 'c0b0115f619443368c38b5c39ff28213'
+        encoded_location = urllib.parse.quote(location_string)
+        # Add bias towards India to improve accuracy
+        url = f'https://api.geoapify.com/v1/geocode/search?text={encoded_location}&filter=countrycode:in&apiKey={GEOAPIFY_API_KEY}'
+        
+        print(f"Geocoding location: '{location_string}'")
+        
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get('features') and len(data['features']) > 0:
+                feature = data['features'][0]
+                coordinates = feature['geometry']['coordinates']
+                properties = feature.get('properties', {})
+                
+                # GeoJSON format: [longitude, latitude]
+                result = {
+                    'lat': coordinates[1],  # latitude
+                    'lng': coordinates[0]   # longitude
+                }
+                
+                # Log geocoded location details for verification
+                geocoded_city = properties.get('city', 'N/A')
+                geocoded_state = properties.get('state', 'N/A')
+                print(f"Successfully geocoded '{location_string}' -> {result} (Geocoded as: {geocoded_city}, {geocoded_state})")
+                
+                # Verify the state matches if we have state info
+                if clean_state and geocoded_state != 'N/A':
+                    if clean_state.lower() not in geocoded_state.lower() and geocoded_state.lower() not in clean_state.lower():
+                        print(f"WARNING: State mismatch! Requested: '{clean_state}', Got: '{geocoded_state}'")
+                
+                return result
+            else:
+                print(f"No coordinates found for '{location_string}', using India center")
+                return {'lat': 20.5937, 'lng': 78.9629}
+        else:
+            print(f"Geocoding API error {response.status_code}, using India center")
+            return {'lat': 20.5937, 'lng': 78.9629}
+            
+    except Exception as e:
+        print(f"Error geocoding location (state={state}, city={city}): {e}")
+        import traceback
+        traceback.print_exc()
+        # Return India center as fallback
+        return {'lat': 20.5937, 'lng': 78.9629}
 
 @app.route('/api/row-risk/analytics', methods=['GET'])
 @jwt_required()

@@ -114,18 +114,26 @@ const MapView = () => {
   // Function to get coordinates using Geoapify geocoding API
   const getCoordinatesForLocation = async (state, city, specificLocation) => {
     try {
-      // Build location string for geocoding
+      // Build location string for geocoding - be very explicit about state
       let locationString;
       
-      if (city && state) {
-        // Use city and state for most accurate results
-        locationString = buildLocationString(city, state, 'India');
-      } else if (state && specificLocation) {
-        // Use state and specific location as fallback
-        locationString = buildLocationString(specificLocation, state, 'India');
-      } else if (state) {
-        // Use just state as last resort
-        locationString = buildLocationString('', state, 'India');
+      // Clean and normalize input
+      const cleanState = state?.trim() || '';
+      const cleanCity = city?.trim() || '';
+      const cleanSpecific = specificLocation?.trim() || '';
+      
+      console.log('Input data:', { state: cleanState, city: cleanCity, specific: cleanSpecific });
+      
+      if (cleanCity && cleanState) {
+        // Most accurate: City, State, India
+        locationString = `${cleanCity}, ${cleanState}, India`;
+      } else if (cleanState && cleanSpecific) {
+        // Fallback: Specific location, State, India
+        locationString = `${cleanSpecific}, ${cleanState}, India`;
+      } else if (cleanState) {
+        // Last resort: State capital or major city, State, India
+        // This ensures we get a location within the correct state
+        locationString = `${cleanState}, India`;
       } else {
         // Default fallback
         console.log('No location information provided, using India center');
@@ -146,16 +154,25 @@ const MapView = () => {
   };
 
   useEffect(() => {
-    const loadProjects = async () => {
+    const loadData = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/projects`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Authorization': `Bearer ${token}`
+        };
+        
+        // Fetch both projects and risk zones in parallel
+        const [projectsResponse, riskZonesResponse] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/projects`, { headers }),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/row-risk/risk-zones`, { headers })
+        ]);
+        
+        // Set risk zones
+        setRiskZones(riskZonesResponse.data);
+        console.log('Loaded risk zones:', riskZonesResponse.data);
         
         // Convert backend project data to map format with async geocoding
-        const mapProjectsPromises = response.data.map(async (project, index) => {
+        const mapProjectsPromises = projectsResponse.data.map(async (project, index) => {
           console.log(`Processing project ${index + 1}:`, {
             name: project.name,
             state: project.state,
@@ -167,7 +184,7 @@ const MapView = () => {
           const coordinates = await getCoordinatesForLocation(project.state, project.city, project.location);
           
           const mappedProject = {
-            id: project._id || project.project_id,
+            id: String(project._id || project.project_id),
             name: project.name,
             location: project.city && project.state ? `${project.city}, ${project.state}` : project.location,
             state: project.state,
@@ -229,7 +246,7 @@ const MapView = () => {
       }
     };
 
-    loadProjects();
+    loadData();
   }, []);
 
   const getMarkerColor = (type) => {
@@ -303,7 +320,8 @@ const MapView = () => {
                          riskZones?.risk_zones?.medium_risk?.find(p => p.project_id === project.id) ||
                          riskZones?.risk_zones?.low_risk?.find(p => p.project_id === project.id);
       
-      if (projectRisk && projectRisk.risk_level !== filters.riskLevel) return false;
+      // Only show projects that have the selected risk level
+      if (!projectRisk || projectRisk.risk_level !== filters.riskLevel) return false;
     }
     
     return true;
