@@ -59,6 +59,7 @@ function App() {
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/team-invitation" element={<TeamInvitation />} />
+            <Route path="/project-invitation" element={<TeamInvitation />} />
             
             {/* Protected routes */}
             <Route path="/dashboard" element={
