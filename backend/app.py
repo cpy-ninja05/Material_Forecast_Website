@@ -252,6 +252,10 @@ def register():
     if not username or not email or not password:
         return jsonify({'error': 'Missing required fields'}), 400
     
+    # Convert username and email to lowercase for consistency
+    username = username.lower().strip()
+    email = email.lower().strip()
+    
     # Check if user exists
     existing = users_collection.find_one({'$or': [{'username': username}, {'email': email}]})
     if existing:
@@ -282,6 +286,9 @@ def login():
     
     if not username or not password:
         return jsonify({'error': 'Missing username or password'}), 400
+    
+    # Convert username to lowercase for consistency
+    username = username.lower().strip()
     
     user = users_collection.find_one({'username': username})
     

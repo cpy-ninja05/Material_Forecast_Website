@@ -34,9 +34,10 @@ const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }) => {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: name === 'username' ? value.toLowerCase() : value
     });
   };
 
@@ -293,9 +294,10 @@ const Register = ({ onSwitchToLogin }) => {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: name === 'username' || name === 'email' ? value.toLowerCase() : value
     });
   };
 

@@ -8,6 +8,7 @@ import axios from 'axios';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { geocodeLocation, buildLocationString } from '../services/geocodingService';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -28,6 +29,7 @@ const createCustomIcon = (color) => {
 };
 
 const MapView = () => {
+  const { isDark } = useTheme();
   const [projects, setProjects] = useState([]);
   const [riskZones, setRiskZones] = useState(null);
   const [loading, setLoading] = useState(true);
