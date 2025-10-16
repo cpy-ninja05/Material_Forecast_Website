@@ -204,13 +204,13 @@ const RowRiskDashboard = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
            {/* Risk Distribution Pie Chart */}
-           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 overflow-x-auto">
              <div className="flex items-center justify-between mb-6">
                <h3 className="text-lg font-semibold text-gray-900">Risk Distribution</h3>
                <PieChart className="h-5 w-5 text-gray-600" />
              </div>
              
-             <div className="h-80">
+             <div className="h-80 min-w-[360px]">
                <ResponsiveContainer width="100%" height="100%">
                  <RechartsPieChart>
                    <Pie
@@ -255,13 +255,13 @@ const RowRiskDashboard = () => {
            </div>
 
            {/* Risk by State Bar Chart */}
-           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-             <div className="flex items-center justify-between mb-6">
-               <h3 className="text-lg font-semibold text-gray-900">Risk by State</h3>
-               <BarChart3 className="h-5 w-5 text-gray-600" />
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 overflow-x-auto">
+             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+               <h3 className="text-lg font-semibold text-gray-900 text-center md:text-left">Risk by State</h3>
+               <BarChart3 className="h-5 w-5 text-gray-600 hidden md:block" />
              </div>
              
-             <div className="h-[400px]">
+             <div className="h-[400px] min-w-[720px]">
                <ResponsiveContainer width="100%" height="100%">
                  <BarChart 
                    data={finalStateData}

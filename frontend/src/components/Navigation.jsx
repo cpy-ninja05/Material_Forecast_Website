@@ -184,7 +184,9 @@ const Navigation = () => {
             </div>
             {currentWidth > 120 && (
               <div className="flex items-center gap-2 flex-shrink-0">
-                <ThemeToggle />
+                <div className="hidden md:block">
+                  <ThemeToggle />
+                </div>
               </div>
             )}
           </div>

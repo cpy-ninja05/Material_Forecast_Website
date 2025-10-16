@@ -1016,9 +1016,9 @@ const ProjectManagement = () => {
       <div className="p-8 space-y-8">
         {/* View Toggle */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Projects Overview</h3>
-            <div className="flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 text-center md:text-left">Projects Overview</h3>
+            <div className="mt-3 md:mt-0 flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden self-center md:self-auto">
               <button
                 onClick={() => setViewMode('grid')}
                 className={`px-4 py-2 flex items-center gap-2 text-sm ${
@@ -1138,9 +1138,9 @@ const ProjectManagement = () => {
             ))}
         </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 overflow-x-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Project Budget Distribution</h3>
-            <div className="h-96">
+            <div className="h-96 min-w-[720px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={projects.map(project => ({
                   name: project.name.split(' ')[0],

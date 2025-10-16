@@ -290,9 +290,9 @@ const ForecastingPage = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-8 py-8">
-          <div className="flex flex-col items-start">
-            <h1 className="text-3xl font-bold text-gray-900">Material Demand Forecasting</h1>
-            <p className="text-gray-600 mt-2">AI-powered predictions for next month's material requirements</p>
+          <div className="flex flex-col items-center md:items-start">
+            <h1 className="text-3xl font-bold text-gray-900 text-center md:text-left">Material Demand Forecasting</h1>
+            <p className="text-gray-600 mt-2 text-center md:text-left">AI-powered predictions for next month's material requirements</p>
           </div>
         </div>
       </div>
@@ -307,13 +307,13 @@ const ForecastingPage = () => {
           
           {/* Project Selection */}
           <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-4 justify-center">
               <Building className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100">Select Project</h3>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+            <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-end justify-center">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 text-center sm:text-left">
                   Choose Project
                 </label>
                 <select

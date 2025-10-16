@@ -658,9 +658,9 @@ const Inventory = () => {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="px-8 py-8">
-          <div className="flex flex-col items-start">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Inventory Management</h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-2">Track material stock levels, monitor consumption, and manage warehouse operations</p>
+          <div className="flex flex-col items-center md:items-start">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white text-center md:text-left">Inventory Management</h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-2 text-center md:text-left">Track material stock levels, monitor consumption, and manage warehouse operations</p>
           </div>
         </div>
       </div>
@@ -714,7 +714,7 @@ const Inventory = () => {
               <option value="LOW_STOCK">Low Stock</option>
             </select>
             
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex gap-2 w-full md:w-auto justify-center md:justify-end">
               <button 
                 onClick={handleAddItem}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 flex items-center gap-2 transition-colors"

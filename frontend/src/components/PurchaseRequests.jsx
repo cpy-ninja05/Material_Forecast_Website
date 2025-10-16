@@ -726,9 +726,9 @@ const PurchaseRequests = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-8 py-8">
-          <div className="flex flex-col items-start">
-            <h1 className="text-3xl font-bold text-gray-900">Procurement Management</h1>
-            <p className="text-gray-600 mt-2">Manage purchase orders, track approvals, and coordinate with dealers</p>
+          <div className="flex flex-col items-center md:items-start">
+            <h1 className="text-3xl font-bold text-gray-900 text-center md:text-left">Procurement Management</h1>
+            <p className="text-gray-600 mt-2 text-center md:text-left">Manage purchase orders, track approvals, and coordinate with dealers</p>
           </div>
         </div>
       </div>

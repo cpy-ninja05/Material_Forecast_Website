@@ -422,11 +422,11 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Forecast vs Actual Trends */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 lg:col-span-2">
-            <div className="flex items-center justify-between mb-6">
-              <div>
+            <div className="flex flex-col items-center md:flex-row md:items-center md:justify-between mb-4">
+              <div className="text-center md:text-left">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Actual vs Forecasted Demands</h3>
                 {trendData.length > 0 && (
-                  <div className="flex items-center mt-1">
+                  <div className="flex items-center mt-1 justify-center md:justify-start">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                     <span className="text-xs text-gray-600 dark:text-gray-300">
                       Showing material demand trends over time
@@ -435,7 +435,7 @@ const Dashboard = () => {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mt-3 md:mt-0">
                 <select
                   value={selectedProjectId}
                   onChange={(e) => setSelectedProjectId(e.target.value)}
@@ -456,8 +456,9 @@ const Dashboard = () => {
                 </button>
               </div>
             </div>
-            
-            <div className="h-80">
+
+            <div className="h-80 overflow-x-auto">
+              <div className="min-w-[720px] h-full">
               {trendData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -540,6 +541,7 @@ const Dashboard = () => {
                   </div>
                 </div>
               )}
+              </div>
             </div>
             {trendData.length > 0 && (
               <div className="flex items-center justify-center space-x-6 mt-4">
@@ -556,9 +558,9 @@ const Dashboard = () => {
         </div>
 
           {/* Project Status Distribution */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 overflow-x-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Project Status Distribution</h3>
-              <div className="h-80">
+              <div className="h-80 min-w-[360px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
