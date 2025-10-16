@@ -1369,12 +1369,40 @@ def get_dashboard_metrics():
 @jwt_required()
 def get_dashboard_trends():
     try:
-        print("Dashboard trends endpoint called")
-        # Optional filter by project_id
+        username = get_jwt_identity()
+        print(f"Dashboard trends endpoint called for user: {username}")
+        
+        # Get user's teams
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        
+        # Get projects accessible to user (own projects + team projects)
+        accessible_projects = list(projects_collection.find({
+            '$or': [
+                {'created_by': username},
+                {'team_id': {'$in': team_ids}}
+            ]
+        }, {'project_id': 1, '_id': 0}))
+        
+        accessible_project_ids = [project['project_id'] for project in accessible_projects]
+        print(f"User {username} has access to {len(accessible_project_ids)} projects")
+        
+        # Optional filter by specific project_id (must be accessible)
         project_filter = request.args.get('project_id')
-        query = {'project_id': project_filter} if project_filter else {}
+        if project_filter:
+            if project_filter in accessible_project_ids:
+                query = {'project_id': project_filter}
+            else:
+                # User trying to access project they don't have access to
+                return jsonify({'error': 'Access denied to this project'}), 403
+        else:
+            # Filter by accessible projects only
+            query = {'project_id': {'$in': accessible_project_ids}}
 
-        # Read from consolidated project_forecasts (optionally filtered)
+        # Read from consolidated project_forecasts (filtered by accessible projects)
         docs = list(project_forecasts_collection.find(query))
         forecasts = []
         for d in docs:
@@ -1383,7 +1411,7 @@ def get_dashboard_trends():
                     f['_calc_forecast_total'] = sum_numeric_values(f.get('predictions', {}))
                     f['_calc_actual_total'] = sum_numeric_values(f.get('actual_values', {}))
                     forecasts.append(f)
-        print(f"Found {len(forecasts)} total forecasts (new schema)")
+        print(f"Found {len(forecasts)} accessible forecasts for user {username}")
 
         # Aggregate data by month
         monthly_data = {}
@@ -1467,6 +1495,27 @@ def get_dashboard_trends():
 @jwt_required()
 def get_project_forecast_by_month(project_id, month):
     try:
+        username = get_jwt_identity()
+        
+        # Check if user has access to this project
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        
+        # Verify project access
+        project = projects_collection.find_one({
+            'project_id': project_id,
+            '$or': [
+                {'created_by': username},
+                {'team_id': {'$in': team_ids}}
+            ]
+        })
+        
+        if not project:
+            return jsonify({'error': 'Project not found or access denied'}), 403
+        
         forecast = forecasts_collection.find_one({
             'project_id': project_id,
             'forecast_month': month
@@ -1491,6 +1540,27 @@ def get_project_forecast_by_month(project_id, month):
 @jwt_required()
 def generate_actual_values(project_id, month):
     try:
+        username = get_jwt_identity()
+        
+        # Check if user has access to this project
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        
+        # Verify project access
+        project = projects_collection.find_one({
+            'project_id': project_id,
+            '$or': [
+                {'created_by': username},
+                {'team_id': {'$in': team_ids}}
+            ]
+        })
+        
+        if not project:
+            return jsonify({'error': 'Project not found or access denied'}), 403
+        
         # Get the forecast data from consolidated doc
         doc = project_forecasts_collection.find_one({'project_id': project_id})
         forecast = None
@@ -1527,6 +1597,27 @@ def generate_actual_values(project_id, month):
 @jwt_required()
 def get_project_forecasts(project_id):
     try:
+        username = get_jwt_identity()
+        
+        # Check if user has access to this project
+        user_teams = list(teams_collection.find({
+            'members.username': username
+        }, {'team_id': 1, '_id': 0}))
+        
+        team_ids = [team['team_id'] for team in user_teams]
+        
+        # Verify project access
+        project = projects_collection.find_one({
+            'project_id': project_id,
+            '$or': [
+                {'created_by': username},
+                {'team_id': {'$in': team_ids}}
+            ]
+        })
+        
+        if not project:
+            return jsonify({'error': 'Project not found or access denied'}), 403
+        
         # New schema first
         doc = project_forecasts_collection.find_one({'project_id': project_id})
         forecasts = (doc.get('forecasts', []) if doc else [])
