@@ -60,6 +60,8 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/team-invitation" element={<TeamInvitation />} />
             <Route path="/project-invitation" element={<TeamInvitation />} />
+            <Route path="/auth/team-invitation" element={<TeamInvitation />} />
+            <Route path="/auth/project-invitation" element={<TeamInvitation />} />
             
             {/* Protected routes */}
             <Route path="/dashboard" element={

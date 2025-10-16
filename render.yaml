@@ -7,8 +7,12 @@ services:
     staticPublishPath: frontend/dist
     routes:
       - type: rewrite
-        source: /*
+        source: "/*"
         destination: /index.html
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
 
   # Backend Service  
   - type: web
