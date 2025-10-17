@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import { Building, Users, MapPin, Calendar, DollarSign, Eye, Trash2 } from 'lucide-react';
 import { showToast } from '../utils/toast';
 
 const Teams = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -21,7 +23,11 @@ const Teams = () => {
 
   useEffect(() => {
     fetchTeams();
-  }, []);
+    // Clear refresh param after fetching
+    if (searchParams.get('refresh')) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams.get('refresh')]);
 
   const fetchTeams = async () => {
     try {

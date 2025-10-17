@@ -2913,28 +2913,59 @@ def accept_project_invitation(invitation_token):
         if not project:
             return jsonify({'error': 'Project not found'}), 404
         
-        # If project has a team, add user to that team
-        if project.get('team_id'):
-            # Check if user is already in the team
-            team = teams_collection.find_one({
-                'team_id': project['team_id'],
-                'members.username': username
-            })
+        # If project doesn't have a team, create one
+        if not project.get('team_id'):
+            # Generate team_id
+            new_team_id = f"TEAM_{datetime.now().strftime('%Y%m%d%H%M%S')}_{secrets.token_hex(4)}"
             
-            if not team:
-                # Add user to the project's team
-                teams_collection.update_one(
-                    {'team_id': project['team_id']},
+            # Create team with project owner as owner
+            team_data = {
+                'team_id': new_team_id,
+                'name': f"{project['name']} Team",
+                'description': f'Auto-generated team for project: {project["name"]}',
+                'project_id': project['project_id'],
+                'created_by': project['created_by'],
+                'created_at': datetime.now(timezone.utc),
+                'members': [
                     {
-                        '$push': {
-                            'members': {
-                                'username': username,
-                                'role': invitation['role'],
-                                'joined_at': datetime.now(timezone.utc)
-                            }
+                        'username': project['created_by'],
+                        'role': 'owner',
+                        'joined_at': datetime.now(timezone.utc)
+                    }
+                ]
+            }
+            teams_collection.insert_one(team_data)
+            
+            # Update project with new team_id
+            projects_collection.update_one(
+                {'project_id': invitation['project_id']},
+                {'$set': {'team_id': new_team_id}}
+            )
+            
+            # Update project variable with new team_id
+            project['team_id'] = new_team_id
+        
+        # Add user to the project's team
+        # Check if user is already in the team
+        team = teams_collection.find_one({
+            'team_id': project['team_id'],
+            'members.username': username
+        })
+        
+        if not team:
+            # Add user to the project's team
+            teams_collection.update_one(
+                {'team_id': project['team_id']},
+                {
+                    '$push': {
+                        'members': {
+                            'username': username,
+                            'role': invitation['role'],
+                            'joined_at': datetime.now(timezone.utc)
                         }
                     }
-                )
+                }
+            )
         
         # Mark invitation as accepted
         team_invitations_collection.update_one(
@@ -2945,24 +2976,23 @@ def accept_project_invitation(invitation_token):
         # Create notification
         create_notification(username, 'project_joined', f'You joined project "{invitation["project_name"]}"')
         
-        # Notify project team members about new member
-        if project.get('team_id'):
-            team = teams_collection.find_one({'team_id': project['team_id']})
-            if team:
-                for member in team['members']:
-                    if member['username'] != username:
-                        create_notification(
-                            member['username'], 
-                            'project_member_joined', 
-                            f'{username} joined project "{invitation["project_name"]}"'
-                        )
-                
-                # Notify real-time updates
-                update_manager.notify_team_update(project['team_id'], 'project_member_joined', {
-                    'username': username,
-                    'role': invitation['role'],
-                    'project_name': invitation['project_name']
-                })
+        # Notify project team members about new member (project now guaranteed to have team_id)
+        team = teams_collection.find_one({'team_id': project['team_id']})
+        if team:
+            for member in team['members']:
+                if member['username'] != username:
+                    create_notification(
+                        member['username'], 
+                        'project_member_joined', 
+                        f'{username} joined project "{invitation["project_name"]}"'
+                    )
+            
+            # Notify real-time updates
+            update_manager.notify_team_update(project['team_id'], 'project_member_joined', {
+                'username': username,
+                'role': invitation['role'],
+                'project_name': invitation['project_name']
+            })
         
         return jsonify({'message': 'Successfully joined the project'}), 200
         

@@ -46,9 +46,11 @@ const TeamInvitation = () => {
   useEffect(() => {
     if (autoAccept && newUser && invitation && user && !accepting && !error) {
       console.log('Auto-accepting invitation for new user...');
+      console.log('User:', user.username);
+      console.log('Invitation:', invitation);
       acceptInvitation();
     }
-  }, [autoAccept, newUser, invitation, user, accepting, error]);
+  }, [autoAccept, newUser, invitation, user]);
 
   const acceptInvitation = async () => {
     if (!user) {
@@ -59,26 +61,44 @@ const TeamInvitation = () => {
 
     setAccepting(true);
     try {
+      console.log('Accepting invitation for user:', user.username);
+      console.log('Token from localStorage:', localStorage.getItem('token') ? 'Present' : 'Missing');
+      
       // Determine if this is a team or project invitation
       const isProjectInvitation = invitation?.type === 'project_invitation';
       const endpoint = isProjectInvitation 
         ? `/api/projects/invitations/${invitationToken}/accept`
         : `/api/teams/invitations/${invitationToken}/accept`;
       
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL}${endpoint}`);
+      console.log('Calling endpoint:', endpoint);
+      
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}${endpoint}`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      
+      console.log('Invitation accepted successfully:', response.data);
       
       // Refresh user data to get updated team information
       await refreshUser();
       
       if (isProjectInvitation) {
         showToast.success('Successfully joined the project!');
-        navigate('/projects');
+        navigate('/projects?refresh=true');
       } else {
         showToast.success('Successfully joined the team!');
-        navigate('/teams');
+        navigate('/teams?refresh=true');
       }
     } catch (error) {
+      console.error('Error accepting invitation:', error);
+      console.error('Error response:', error.response?.data);
       setError(error.response?.data?.error || 'Failed to accept invitation');
+      showToast.error(error.response?.data?.error || 'Failed to accept invitation');
     } finally {
       setAccepting(false);
     }

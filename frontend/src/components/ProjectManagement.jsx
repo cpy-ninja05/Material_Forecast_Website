@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Building, MapPin, Calendar, DollarSign, TrendingUp, Plus, Edit, Eye, BarChart3, Grid3X3, AlertCircle, CheckCircle, Clock, Save, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import axios from 'axios';
@@ -560,6 +561,7 @@ const CreateProjectForm = ({ onSave, onCancel }) => {
 };
 
 const ProjectManagement = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
@@ -609,7 +611,11 @@ const ProjectManagement = () => {
   // Load projects on component mount
   useEffect(() => {
     loadProjects();
-  }, []);
+    // Clear refresh param after fetching
+    if (searchParams.get('refresh')) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams.get('refresh')]);
 
   const loadProjectForecasts = async (projectId) => {
     try {

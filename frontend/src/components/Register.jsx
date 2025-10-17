@@ -8,7 +8,7 @@ import PlanGridLogo from '/PlanGrid.jpg';
 const Register = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { register: registerUser } = useAuth();
+  const { register: registerUser, login } = useAuth();
   
   const [formData, setFormData] = useState({
     username: '',
@@ -96,20 +96,32 @@ const Register = () => {
     }
 
     try {
-      // Register the user
-      const result = await registerUser(formData.username, formData.email, formData.password);
+      // Step 1: Register the user
+      const registerResult = await registerUser(formData.username, formData.email, formData.password);
       
-      if (result.success) {
-        // Determine invitation type and redirect
-        const isProjectInvitation = invitationInfo?.type === 'project_invitation';
-        const invitationPath = isProjectInvitation ? 'project-invitation' : 'team-invitation';
-        
-        // Redirect to invitation acceptance page with autoAccept flag
-        navigate(`/${invitationPath}?token=${inviteToken}&autoAccept=true&newUser=true`);
-      } else {
-        setError(result.error || 'Registration failed. Please try again.');
+      if (!registerResult.success) {
+        setError(registerResult.error || 'Registration failed. Please try again.');
         setLoading(false);
+        return;
       }
+      
+      // Step 2: Automatically log in the user
+      const loginResult = await login(formData.username, formData.password);
+      
+      if (!loginResult.success) {
+        setError('Registration successful but login failed. Please login manually.');
+        setLoading(false);
+        return;
+      }
+      
+      // Step 3: Determine invitation type and redirect
+      const isProjectInvitation = invitationInfo?.type === 'project_invitation';
+      const invitationPath = isProjectInvitation ? 'project-invitation' : 'team-invitation';
+      
+      // Step 4: Redirect to invitation acceptance page with autoAccept flag
+      // User is now logged in with JWT token, so auto-accept will work
+      navigate(`/${invitationPath}?token=${inviteToken}&autoAccept=true&newUser=true`);
+      
     } catch (error) {
       console.error('Registration error:', error);
       setError(error.response?.data?.error || 'An error occurred during registration');
