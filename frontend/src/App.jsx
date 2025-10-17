@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import LandingPage from './components/LandingPage';
 import AuthPage from './components/AuthPage';
+import Register from './components/Register';
 import ResetPassword from './components/ResetPassword';
 import Dashboard from './components/Dashboard';
 import ForecastingPage from './components/ForecastingPage';
@@ -57,6 +58,8 @@ function App() {
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/auth/register" element={<Register />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/team-invitation" element={<TeamInvitation />} />
             <Route path="/project-invitation" element={<TeamInvitation />} />

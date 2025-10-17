@@ -15,6 +15,8 @@ const TeamInvitation = () => {
   // Get invitation token from URL
   const urlParams = new URLSearchParams(window.location.search);
   const invitationToken = urlParams.get('token');
+  const autoAccept = urlParams.get('autoAccept') === 'true';
+  const newUser = urlParams.get('newUser') === 'true';
 
   useEffect(() => {
     const fetchInvitationDetails = async () => {
@@ -39,6 +41,14 @@ const TeamInvitation = () => {
       setLoading(false);
     }
   }, [invitationToken]);
+
+  // Auto-accept invitation if coming from registration
+  useEffect(() => {
+    if (autoAccept && newUser && invitation && user && !accepting && !error) {
+      console.log('Auto-accepting invitation for new user...');
+      acceptInvitation();
+    }
+  }, [autoAccept, newUser, invitation, user, accepting, error]);
 
   const acceptInvitation = async () => {
     if (!user) {
@@ -74,12 +84,21 @@ const TeamInvitation = () => {
     }
   };
 
-  if (loading) {
+  if (loading || (accepting && autoAccept && newUser)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading invitation...</p>
+          <p className="text-gray-600 dark:text-gray-300">
+            {accepting && autoAccept && newUser 
+              ? `Joining ${invitation?.type === 'project_invitation' ? 'project' : 'team'}...` 
+              : 'Loading invitation...'}
+          </p>
+          {newUser && accepting && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              Welcome! Setting up your account...
+            </p>
+          )}
         </div>
       </div>
     );
@@ -169,7 +188,7 @@ const TeamInvitation = () => {
                 Login to Accept
               </button>
               <button
-                onClick={() => navigate(`/auth?register=true&invite=${invitationToken}`)}
+                onClick={() => navigate(`/register?invite=${invitationToken}`)}
                 className="w-full bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 Create Account
